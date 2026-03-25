@@ -1,7 +1,13 @@
+using Microsoft.EntityFrameworkCore;
+using Uworx.Meridian.Infrastructure.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddDbContext<MeridianDbContext>(options =>
+    options.UseInMemoryDatabase("MeridianDb"));
 
 var app = builder.Build();
 
