@@ -15,7 +15,10 @@ class DapploJiraTests
     [Test]
     public async Task FieldsTest()
     {
-        IJiraClient jiraClient = JiraClient.Create(new Uri(Environment.GetEnvironmentVariable("JIRA_URL")));
+        var jiraUrl = Environment.GetEnvironmentVariable("JIRA_URL");
+        if (string.IsNullOrEmpty(jiraUrl)) Assert.Ignore("JIRA_URL environment variable is not set.");
+
+        IJiraClient jiraClient = JiraClient.Create(new Uri(jiraUrl!));
         jiraClient.SetBasicAuthentication(Environment.GetEnvironmentVariable("JIRA_USER"), Environment.GetEnvironmentVariable("JIRA_TOKEN"));
 
         var fields = await jiraClient.Server.GetFieldsAsync();
@@ -25,7 +28,10 @@ class DapploJiraTests
     [Test]
     public async Task SearchTest()
     {
-        var jiraClient = JiraClient.Create(new Uri(Environment.GetEnvironmentVariable("JIRA_URL")),
+        var jiraUrl = Environment.GetEnvironmentVariable("JIRA_URL");
+        if (string.IsNullOrEmpty(jiraUrl)) Assert.Ignore("JIRA_URL environment variable is not set.");
+
+        var jiraClient = JiraClient.Create(new Uri(jiraUrl!),
             new HttpSettings
             {
                 IgnoreSslCertificateErrors = true
@@ -50,7 +56,10 @@ class DapploJiraTests
     [Test]
     public async Task SprintsTest()
     {
-        var jiraClient = JiraClient.Create(new Uri(Environment.GetEnvironmentVariable("JIRA_URL")),
+        var jiraUrl = Environment.GetEnvironmentVariable("JIRA_URL");
+        if (string.IsNullOrEmpty(jiraUrl)) Assert.Ignore("JIRA_URL environment variable is not set.");
+
+        var jiraClient = JiraClient.Create(new Uri(jiraUrl!),
             new HttpSettings
             {
                 IgnoreSslCertificateErrors = true
@@ -72,7 +81,10 @@ class DapploJiraTests
         var author = "Khurram Aziz";
         var since = new DateTime(2025, 9, 29);
 
-        var jiraClient = JiraClient.Create(new Uri(Environment.GetEnvironmentVariable("JIRA_URL")),
+        var jiraUrl = Environment.GetEnvironmentVariable("JIRA_URL");
+        if (string.IsNullOrEmpty(jiraUrl)) Assert.Ignore("JIRA_URL environment variable is not set.");
+
+        var jiraClient = JiraClient.Create(new Uri(jiraUrl!),
             new HttpSettings
             {
                 IgnoreSslCertificateErrors = true
