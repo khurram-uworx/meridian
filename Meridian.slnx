@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="src/Meridian.Tests/Meridian.Tests.csproj" />
+  <Project Path="src/Meridian/Meridian.csproj" Id="5453b627-cdd2-4c80-ab2f-97ba6167b947" />
+  <Project Path="src/Uworx.Meridian.Infrastructure/Uworx.Meridian.Infrastructure.csproj" Id="96d89798-ab4b-42ed-a084-9fdbbab41985" />
+  <Project Path="src/Uworx.Meridian/Uworx.Meridian.csproj" Id="5963635a-8dc5-49d5-b209-edcdee59779c" />
+</Solution>
