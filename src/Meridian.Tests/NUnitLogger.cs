@@ -5,7 +5,7 @@ namespace Meridian.Tests;
 
 internal class NUnitLogger<T> : ILogger<T>, IDisposable
 {
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
         if (logLevel != LogLevel.Information)
             TestContext.Out.WriteLine($"{logLevel}: {state}");
@@ -15,7 +15,7 @@ internal class NUnitLogger<T> : ILogger<T>, IDisposable
 
     public bool IsEnabled(LogLevel logLevel) => true;
 
-    public IDisposable BeginScope<TState>(TState state) => this;
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => this;
 
     public void Dispose() { }
 }
