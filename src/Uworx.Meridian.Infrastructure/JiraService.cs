@@ -73,4 +73,28 @@ public class JiraService : IJiraService
         var createdIssue = await _jiraClient.Issue.CreateAsync(issue);
         return createdIssue.Key;
     }
+
+    public async Task<string> PostCommentAsync(string issueKey, string comment)
+    {
+        var createdComment = await _jiraClient.Issue.AddCommentAsync(issueKey, comment);
+        return createdComment.Id.ToString();
+    }
+
+    public async Task TransitionToAsync(string issueKey, string transitionName)
+    {
+        var transitions = await _jiraClient.Issue.GetTransitionsAsync(issueKey);
+        var transition = transitions.FirstOrDefault(t => t.Name.Equals(transitionName, StringComparison.OrdinalIgnoreCase));
+
+        if (transition != null)
+        {
+            await _jiraClient.Issue.TransitionAsync(issueKey, transition);
+        }
+    }
+
+    public async Task<string?> FindStoryKeyByLabelAsync(string epicKey, string label)
+    {
+        var jql = $"'Epic Link' = \"{epicKey}\" AND labels = '{label}'";
+        var result = await _jiraClient.Issue.SearchAsync(jql, new Page { StartAt = 0, MaxResults = 1 });
+        return result.FirstOrDefault()?.Key;
+    }
 }
