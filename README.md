@@ -138,8 +138,8 @@ EF Core In-Memory for PoC. Migration to Postgres or SQL Server requires zero mod
   - Local absolute path (read directly from disk)
   - Existing local repo + course subfolder path
 - [x] Parse `course.yaml` into `CourseConfig`
-- [ ] Parse MD frontmatter (YAML) from each `.md` file into `SectionDefinition`
-- [ ] Unit tests: given source type + course path, assert correct sections are parsed in order
+- [x] Parse MD frontmatter (YAML) from each `.md` file into `SectionDefinition`
+- [x] Unit tests: given source type + course path, assert correct sections are parsed in order
 
 ### Phase 2 — Enrollment & Jira Scaffolding
 - [ ] Jira service: `CreateEpic()`, `CreateStory(epicKey, title, description, storyPoints)`
