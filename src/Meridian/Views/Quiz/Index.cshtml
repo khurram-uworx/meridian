@@ -1,0 +1,44 @@
+@model IEnumerable<Uworx.Meridian.CourseSource.QuizQuestion>
+@{
+    ViewData["Title"] = ViewBag.QuizTitle;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">@ViewBag.CourseTitle</h4>
+                    <small>@ViewBag.QuizTitle</small>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Submit" asp-route-quizId="@ViewBag.QuizId" asp-route-enrollment="@ViewBag.EnrollmentId" method="post">
+                        @{
+                            var i = 0;
+                        }
+                        @foreach (var question in Model)
+                        {
+                            <div class="mb-4">
+                                <h5>@(i + 1). @question.Text</h5>
+                                @for (int j = 0; j < question.Options.Count; j++)
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="question_@i" id="q@(i)o@(j)" value="@j" required>
+                                        <label class="form-check-label" for="q@(i)o@(j)">
+                                            @question.Options[j]
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                            i++;
+                        }
+                        <hr />
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">Submit Quiz</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

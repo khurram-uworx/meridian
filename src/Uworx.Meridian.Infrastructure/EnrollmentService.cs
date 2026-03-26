@@ -87,27 +87,7 @@ public class EnrollmentService : IEnrollmentService
             throw;
         }
 
-        // 5. Create Jira Stories
-        try
-        {
-            foreach (var section in parsedCourse.Sections)
-            {
-                await _jiraService.CreateStoryAsync(
-                    epicKey,
-                    section.Title,
-                    section.BodyMarkdown,
-                    section.StoryPoints,
-                    section.Type);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create Jira Stories for Epic {EpicKey}. Cleanup required.", epicKey);
-            // We don't delete the epic as per requirement (PoC), but we must ensure DB is not persisted.
-            throw;
-        }
-
-        // 6. Create Enrollment record
+        // 5. Create Enrollment record early to get the ID for quiz links
         var enrollment = new Enrollment
         {
             LearnerId = learner.Id,
@@ -119,6 +99,42 @@ public class EnrollmentService : IEnrollmentService
 
         _dbContext.Enrollments.Add(enrollment);
         await _dbContext.SaveChangesAsync();
+
+        // 6. Create Jira Stories
+        try
+        {
+            foreach (var section in parsedCourse.Sections)
+            {
+                var description = section.BodyMarkdown;
+                var label = section.Type;
+
+                if (section.Type == "quiz" && !string.IsNullOrEmpty(section.QuizId))
+                {
+                    // For PoC we use a placeholder host, in real world this should be configurable
+                    var quizLink = $"\n\n[Take the Quiz](http://localhost:5000/quiz/{section.QuizId}?enrollment={enrollment.Id})";
+                    description += quizLink;
+                    label = section.QuizId; // Use QuizId as label to find the story later
+                }
+
+                await _jiraService.CreateStoryAsync(
+                    epicKey,
+                    section.Title,
+                    description,
+                    section.StoryPoints,
+                    label);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create Jira Stories for Epic {EpicKey}. Cleanup required.", epicKey);
+
+            // Cleanup enrollment record if stories failed to create
+            _dbContext.Enrollments.Remove(enrollment);
+            await _dbContext.SaveChangesAsync();
+
+            // We don't delete the epic as per requirement (PoC), but we must ensure DB is not persisted.
+            throw;
+        }
 
         return enrollment;
     }

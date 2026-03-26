@@ -21,4 +21,27 @@ public interface IJiraService
     /// <param name="label">A label to apply (e.g., section type like lesson, quiz, lab).</param>
     /// <returns>The key of the created Story.</returns>
     Task<string> CreateStoryAsync(string epicKey, string title, string description, int storyPoints, string label);
+
+    /// <summary>
+    /// Posts a comment to a Jira issue.
+    /// </summary>
+    /// <param name="issueKey">The key of the issue.</param>
+    /// <param name="comment">The comment text.</param>
+    /// <returns>The ID of the created comment.</returns>
+    Task<string> PostCommentAsync(string issueKey, string comment);
+
+    /// <summary>
+    /// Transitions a Jira issue to a new status.
+    /// </summary>
+    /// <param name="issueKey">The key of the issue.</param>
+    /// <param name="transitionName">The name of the transition (e.g., "In Review", "Done").</param>
+    Task TransitionToAsync(string issueKey, string transitionName);
+
+    /// <summary>
+    /// Finds a story key in an epic by a specific label.
+    /// </summary>
+    /// <param name="epicKey">The key of the parent epic.</param>
+    /// <param name="label">The label to search for.</param>
+    /// <returns>The story key, or null if not found.</returns>
+    Task<string?> FindStoryKeyByLabelAsync(string epicKey, string label);
 }
