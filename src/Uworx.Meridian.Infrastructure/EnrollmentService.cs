@@ -138,4 +138,12 @@ public class EnrollmentService : IEnrollmentService
 
         return enrollment;
     }
+
+    public async Task<IEnumerable<Enrollment>> GetEnrollmentsByLearnerIdAsync(int learnerId)
+    {
+        return await _dbContext.Enrollments
+            .Include(e => e.Course)
+            .Where(e => e.LearnerId == learnerId)
+            .ToListAsync();
+    }
 }

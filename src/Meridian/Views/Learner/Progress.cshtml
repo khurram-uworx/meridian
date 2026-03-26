@@ -1,0 +1,90 @@
+@model LearnerProgressViewModel
+@{
+    ViewData["Title"] = "Learner Progress";
+    var jiraBaseUrl = ViewData["JiraBaseUrl"] as string;
+}
+
+<div class="container mt-4">
+    <h2>Progress for @Model.LearnerName</h2>
+    <hr />
+
+    @if (!Model.Courses.Any())
+    {
+        <div class="alert alert-info">
+            This learner is not enrolled in any courses yet.
+        </div>
+    }
+    else
+    {
+        @foreach (var course in Model.Courses)
+        {
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">@course.CourseTitle</h4>
+                    <div>
+                        <span class="badge bg-primary">@course.CompletionPct% Complete</span>
+                        <a href="@(jiraBaseUrl)/browse/@(course.EpicKey)" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">View Epic</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar" role="progressbar" style="width: @(course.CompletionPct)%;"
+                             aria-valuenow="@course.CompletionPct" aria-valuemin="0" aria-valuemax="100">
+                             @course.CompletionPct%
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(course.ErrorMessage))
+                    {
+                        <div class="alert alert-warning">
+                            @course.ErrorMessage
+                        </div>
+                    }
+                    else if (!course.Stories.Any())
+                    {
+                        <p class="text-muted">No stories found for this course.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-hover mt-3">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Story</th>
+                                    <th>Status</th>
+                                    <th>Points</th>
+                                    <th>Link</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var story in course.Stories)
+                                {
+                                    <tr>
+                                        <td>@story.Title</td>
+                                        <td>
+                                            @if (story.Status.Equals("Done", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <span class="badge bg-success">@story.Status</span>
+                                            }
+                                            else if (story.Status.Equals("In Progress", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <span class="badge bg-info text-dark">@story.Status</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">@story.Status</span>
+                                            }
+                                        </td>
+                                        <td>@story.StoryPoints</td>
+                                        <td>
+                                            <a href="@(jiraBaseUrl)/browse/@(story.Key)" target="_blank">@story.Key</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
