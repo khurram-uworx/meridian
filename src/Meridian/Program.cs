@@ -1,15 +1,39 @@
 using Microsoft.EntityFrameworkCore;
+using Uworx.Meridian.Configuration;
 using Uworx.Meridian.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.Configure<JiraOptions>(builder.Configuration.GetSection(JiraOptions.Jira));
+
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<MeridianDbContext>(options =>
     options.UseInMemoryDatabase("MeridianDb"));
 
 var app = builder.Build();
+
+// Validate Jira configuration
+var jiraOptions = builder.Configuration.GetSection(JiraOptions.Jira).Get<JiraOptions>();
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+if (string.IsNullOrWhiteSpace(jiraOptions?.BaseUrl) || jiraOptions.BaseUrl == "https://your-domain.atlassian.net")
+{
+    logger.LogWarning("Jira:BaseUrl is missing or using default value.");
+}
+if (string.IsNullOrWhiteSpace(jiraOptions?.ApiToken) || jiraOptions.ApiToken == "your-jira-api-token")
+{
+    logger.LogWarning("Jira:ApiToken is missing or using default value.");
+}
+if (string.IsNullOrWhiteSpace(jiraOptions?.UserEmail) || jiraOptions.UserEmail == "you@company.com")
+{
+    logger.LogWarning("Jira:UserEmail is missing or using default value.");
+}
+if (string.IsNullOrWhiteSpace(jiraOptions?.ProjectKey) || jiraOptions.ProjectKey == "LEARN")
+{
+    logger.LogWarning("Jira:ProjectKey is missing or using default value.");
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
