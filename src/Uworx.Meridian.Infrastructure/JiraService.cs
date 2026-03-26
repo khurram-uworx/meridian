@@ -1,0 +1,76 @@
+using Dapplo.Jira;
+using Dapplo.Jira.Entities;
+using Microsoft.Extensions.Options;
+using Uworx.Meridian.Configuration;
+
+namespace Uworx.Meridian.Infrastructure;
+
+public class JiraService : IJiraService
+{
+    private readonly IJiraClient _jiraClient;
+    private readonly JiraOptions _options;
+
+    public JiraService(IOptions<JiraOptions> options)
+    {
+        _options = options.Value;
+        _jiraClient = JiraClient.Create(new Uri(_options.BaseUrl));
+        _jiraClient.SetBasicAuthentication(_options.UserEmail, _options.ApiToken);
+    }
+
+    // Constructor for testing with mocked client
+    public JiraService(IJiraClient jiraClient, IOptions<JiraOptions> options)
+    {
+        _jiraClient = jiraClient;
+        _options = options.Value;
+    }
+
+    public async Task<string> CreateEpicAsync(string projectKey, string title, string label)
+    {
+        var issue = new Issue
+        {
+            Fields = new IssueFields
+            {
+                Project = new Project { Key = projectKey },
+                Summary = title,
+                IssueType = new IssueType { Name = "Epic" },
+                Labels = new List<string> { label }
+            }
+        };
+
+        // Epic Name is often required. In Dapplo.Jira it might be a custom field.
+        // For Epics, "Epic Name" is usually customfield_10011.
+        ((IssueV2)issue).AddCustomField("customfield_10011", title);
+
+        var createdIssue = await _jiraClient.Issue.CreateAsync(issue);
+        return createdIssue.Key;
+    }
+
+    public async Task<string> CreateStoryAsync(string epicKey, string title, string description, int storyPoints, string label)
+    {
+        var issue = new Issue
+        {
+            Fields = new IssueFields
+            {
+                Project = new Project { Key = epicKey.Split('-')[0] },
+                Summary = title,
+                Description = (AdfDocument)description,
+                IssueType = new IssueType { Name = "Story" },
+                Labels = new List<string> { label }
+            }
+        };
+
+        var issueV2 = (IssueV2)issue;
+
+        // Set Epic Link
+        issueV2.AddCustomField("customfield_10014", epicKey); // Epic Link is usually 10014
+
+        // Set story points using custom field
+        if (!string.IsNullOrEmpty(_options.StoryPointsField))
+        {
+            issueV2.AddCustomField(_options.StoryPointsField, storyPoints);
+        }
+
+        var createdIssue = await _jiraClient.Issue.CreateAsync(issue);
+        return createdIssue.Key;
+    }
+}
