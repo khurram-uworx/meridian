@@ -93,7 +93,7 @@ epic_label: "meridian"
 
 The first working version does exactly this and nothing more:
 
-- [ ] `course.yaml` + MD files define a course in one of:
+- [x] `course.yaml` + MD files define a course in one of:
   - Git repo root
   - Git repo subfolder (for example, `courses/course1`, `courses/course2`)
   - Absolute local folder path (for example, `C:\courses\course1`)
@@ -129,15 +129,15 @@ EF Core In-Memory for PoC. Migration to Postgres or SQL Server requires zero mod
   - `Meridian` — ASP.NET MVC project
   - `Uworx.Meridian` — domain models, interfaces
   - `Uworx.Meridian.Infrastructure` — EF, Git, Jira integrations
-- [ ] EF In-Memory wired up, migrations ready to swap provider
-- [ ] `appsettings.json` stubs for Jira base URL, API token, default project key
+- [x] EF In-Memory wired up, migrations ready to swap provider
+- [x] `appsettings.json` stubs for Jira base URL, API token, default project key
 
 ### Phase 1 — Course Parsing
-- [ ] Resolve course source:
+- [x] Resolve course source:
   - Git URL (clone via LibGit2Sharp)
   - Local absolute path (read directly from disk)
   - Existing local repo + course subfolder path
-- [ ] Parse `course.yaml` into `CourseConfig`
+- [x] Parse `course.yaml` into `CourseConfig`
 - [ ] Parse MD frontmatter (YAML) from each `.md` file into `SectionDefinition`
 - [ ] Unit tests: given source type + course path, assert correct sections are parsed in order
 
