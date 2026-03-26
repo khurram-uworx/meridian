@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "Enrollment Successful";
+    var epicKey = ViewData["EpicKey"] as string;
+    var jiraBaseUrl = ViewData["JiraBaseUrl"] as string;
+    var jiraLink = $"{jiraBaseUrl?.TrimEnd('/')}/browse/{epicKey}";
+}
+
+<div class="text-center">
+    <h1 class="display-4 text-success">Enrollment Successful!</h1>
+    <p class="lead">Your learning journey has been scaffolded in Jira.</p>
+
+    <div class="card mt-4 mx-auto" style="max-width: 500px;">
+        <div class="card-body">
+            <h5 class="card-title">Jira Epic</h5>
+            <p class="card-text">
+                Your progress will be tracked in the following Jira Epic:
+            </p>
+            <a href="@jiraLink" target="_blank" class="btn btn-outline-primary btn-lg">
+                @epicKey
+            </a>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-link">Back to Home</a>
+    </div>
+</div>

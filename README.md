@@ -97,8 +97,8 @@ The first working version does exactly this and nothing more:
   - Git repo root
   - Git repo subfolder (for example, `courses/course1`, `courses/course2`)
   - Absolute local folder path (for example, `C:\courses\course1`)
-- [ ] `POST /enroll` — takes learner + course source locator, resolves the course folder, records source revision when applicable, creates Jira Epic + Stories
-- [ ] Jira Stories get MD content as description + frontmatter mapped to fields
+- [x] `POST /enroll` — takes learner + course source locator, resolves the course folder, records source revision when applicable, creates Jira Epic + Stories
+- [x] Jira Stories get MD content as description + frontmatter mapped to fields
 - [ ] Quiz sections generate a Meridian-hosted link embedded in the ticket
 - [ ] Meridian quiz UI — MCQ, submit, write score back as Jira comment, transition ticket
 - [ ] Learner progress view — Meridian polls Jira for its known Epics and renders completion state
@@ -146,7 +146,7 @@ EF Core In-Memory for PoC. Migration to Postgres or SQL Server requires zero mod
 - [x] Jira service: `CreateEpic()`, `CreateStory(epicKey, title, description, storyPoints, label)`
 - [x] Enrollment flow: resolve source → parse → create Epic → loop sections → create Stories
 - [x] Persist `Enrollment` record with `SourceRevision` (Git SHA or `null` for local folder) and `JiraEpicKey`
-- [ ] Simple Razor page: enroll form (learner email + source locator + optional course subpath) → confirm page showing Epic link
+- [x] Simple Razor page: enroll form (learner email + source locator + optional course subpath) → confirm page showing Epic link
 
 ### Phase 3 — Quiz Flow
 - [ ] Quiz definition in MD frontmatter (question/options in YAML or linked JSON)
