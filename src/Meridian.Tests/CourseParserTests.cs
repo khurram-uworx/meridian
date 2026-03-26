@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Uworx.Meridian.CourseSource;
 using Uworx.Meridian.Infrastructure.CourseSource;
@@ -18,7 +19,7 @@ public class CourseParserTests
 
         var sourceResolver = new CourseSourceResolver();
         var configParser = new CourseConfigParser();
-        var sectionParser = new SectionParser();
+        var sectionParser = new SectionParser(NullLogger<SectionParser>.Instance);
         _parser = new CourseParser(sourceResolver, configParser, sectionParser);
     }
 

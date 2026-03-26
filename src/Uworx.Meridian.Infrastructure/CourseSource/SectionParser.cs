@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Uworx.Meridian.CourseSource;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -8,9 +9,11 @@ namespace Uworx.Meridian.Infrastructure.CourseSource;
 public class SectionParser : ISectionParser
 {
     private readonly IDeserializer _deserializer;
+    private readonly ILogger<SectionParser> _logger;
 
-    public SectionParser()
+    public SectionParser(ILogger<SectionParser> logger)
     {
+        _logger = logger;
         _deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .IgnoreUnmatchedProperties()
@@ -48,6 +51,17 @@ public class SectionParser : ISectionParser
             var storyPoints = dto?.StoryPoints ?? 0;
             var quizId = dto?.Quiz;
             var dependsOn = dto?.DependsOn;
+            var quizQuestions = dto?.QuizQuestions?.Select(q => new QuizQuestion(
+                q.Text ?? string.Empty,
+                q.Options ?? new List<string>(),
+                q.CorrectIndex ?? 0
+            )).ToList() ?? new List<QuizQuestion>();
+
+            if (type == "quiz" && !quizQuestions.Any())
+            {
+                _logger.LogWarning("Section {FileName} has type 'quiz' but no quiz_questions defined. Treating as 'lesson'.", fileName);
+                type = "lesson";
+            }
 
             sections.Add(new SectionDefinition(
                 title,
@@ -56,7 +70,8 @@ public class SectionParser : ISectionParser
                 storyPoints,
                 quizId,
                 dependsOn,
-                body.Trim()
+                body.Trim(),
+                quizQuestions
             ));
         }
 
@@ -104,5 +119,13 @@ public class SectionParser : ISectionParser
         public int? StoryPoints { get; set; }
         public string? Quiz { get; set; }
         public string? DependsOn { get; set; }
+        public List<QuizQuestionDto>? QuizQuestions { get; set; }
+    }
+
+    private class QuizQuestionDto
+    {
+        public string? Text { get; set; }
+        public List<string>? Options { get; set; }
+        public int? CorrectIndex { get; set; }
     }
 }

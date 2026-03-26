@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Uworx.Meridian.Infrastructure.CourseSource;
 
@@ -14,7 +15,7 @@ public class SectionParserTests
     {
         _tempCoursePath = Path.Combine(Path.GetTempPath(), "meridian_section_tests", Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempCoursePath);
-        _parser = new SectionParser();
+        _parser = new SectionParser(NullLogger<SectionParser>.Instance);
     }
 
     [TearDown]
@@ -119,5 +120,64 @@ Even more dashes.";
 
         // Assert
         Assert.That(result[0].BodyMarkdown, Is.EqualTo("This is the body.\nIt has multiple lines.\n---\nEven more dashes."));
+    }
+
+    [Test]
+    public void ParseSections_WithQuizQuestions_PopulatesQuizQuestions()
+    {
+        // Arrange
+        var content = @"---
+title: ""Quiz Time""
+type: quiz
+quiz_questions:
+  - text: ""What is 2+2?""
+    options: [""3"", ""4"", ""5""]
+    correct_index: 1
+  - text: ""What is the capital of France?""
+    options: [""London"", ""Berlin"", ""Paris""]
+    correct_index: 2
+---
+Good luck!";
+        File.WriteAllText(Path.Combine(_tempCoursePath, "quiz.md"), content);
+
+        // Act
+        var result = _parser.ParseSections(_tempCoursePath).ToList();
+
+        // Assert
+        Assert.That(result.Count, Is.EqualTo(1));
+        var section = result[0];
+        Assert.That(section.Type, Is.EqualTo("quiz"));
+        Assert.That(section.QuizQuestions.Count(), Is.EqualTo(2));
+
+        var q1 = section.QuizQuestions.First();
+        Assert.That(q1.Text, Is.EqualTo("What is 2+2?"));
+        Assert.That(q1.Options.Count, Is.EqualTo(3));
+        Assert.That(q1.Options[1], Is.EqualTo("4"));
+        Assert.That(q1.CorrectIndex, Is.EqualTo(1));
+
+        var q2 = section.QuizQuestions.Last();
+        Assert.That(q2.Text, Is.EqualTo("What is the capital of France?"));
+        Assert.That(q2.CorrectIndex, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void ParseSections_TypeQuizWithNoQuestions_LogsWarningAndSetsTypeToLesson()
+    {
+        // Arrange
+        var content = @"---
+title: ""Empty Quiz""
+type: quiz
+---
+Wait, where are the questions?";
+        File.WriteAllText(Path.Combine(_tempCoursePath, "empty-quiz.md"), content);
+
+        // Act
+        var result = _parser.ParseSections(_tempCoursePath).ToList();
+
+        // Assert
+        Assert.That(result.Count, Is.EqualTo(1));
+        var section = result[0];
+        Assert.That(section.Type, Is.EqualTo("lesson"));
+        Assert.That(section.QuizQuestions.Count(), Is.EqualTo(0));
     }
 }

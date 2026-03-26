@@ -7,5 +7,9 @@ public record SectionDefinition(
     int StoryPoints,
     string? QuizId,
     string? DependsOn,
-    string BodyMarkdown
-);
+    string BodyMarkdown,
+    IEnumerable<QuizQuestion>? QuizQuestions = null
+)
+{
+    public IEnumerable<QuizQuestion> QuizQuestions { get; init; } = QuizQuestions ?? [];
+}
