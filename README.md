@@ -143,7 +143,7 @@ EF Core In-Memory for PoC. Migration to Postgres or SQL Server requires zero mod
 - [x] Integrated `ICourseParser` service
 
 ### Phase 2 — Enrollment & Jira Scaffolding
-- [ ] Jira service: `CreateEpic()`, `CreateStory(epicKey, title, description, storyPoints)`
+- [x] Jira service: `CreateEpic()`, `CreateStory(epicKey, title, description, storyPoints, label)`
 - [ ] Enrollment flow: resolve source → parse → create Epic → loop sections → create Stories
 - [ ] Persist `Enrollment` record with `SourceRevision` (Git SHA or `null` for local folder) and `JiraEpicKey`
 - [ ] Simple Razor page: enroll form (learner email + source locator + optional course subpath) → confirm page showing Epic link
