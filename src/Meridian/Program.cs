@@ -21,6 +21,7 @@ builder.Services.AddScoped<ICourseConfigParser, CourseConfigParser>();
 builder.Services.AddScoped<ISectionParser, SectionParser>();
 builder.Services.AddScoped<ICourseParser, CourseParser>();
 builder.Services.AddScoped<IJiraService, JiraService>();
+builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 
 var app = builder.Build();
 
