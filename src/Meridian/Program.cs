@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Uworx.Meridian.Configuration;
+using Uworx.Meridian.CourseSource;
+using Uworx.Meridian.Infrastructure.CourseSource;
 using Uworx.Meridian.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +13,11 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<MeridianDbContext>(options =>
     options.UseInMemoryDatabase("MeridianDb"));
+
+builder.Services.AddScoped<ICourseSourceResolver, CourseSourceResolver>();
+builder.Services.AddScoped<ICourseConfigParser, CourseConfigParser>();
+builder.Services.AddScoped<ISectionParser, SectionParser>();
+builder.Services.AddScoped<ICourseParser, CourseParser>();
 
 var app = builder.Build();
 
