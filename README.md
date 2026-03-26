@@ -149,7 +149,7 @@ EF Core In-Memory for PoC. Migration to Postgres or SQL Server requires zero mod
 - [x] Simple Razor page: enroll form (learner email + source locator + optional course subpath) → confirm page showing Epic link
 
 ### Phase 3 — Quiz Flow
-- [ ] Quiz definition in MD frontmatter (question/options in YAML or linked JSON)
+- [x] Quiz definition in MD frontmatter (question/options in YAML or linked JSON)
 - [ ] Meridian quiz UI: `/quiz/{quizId}?enrollment={id}` — render MCQs, submit
 - [ ] On submit: calculate score, POST comment to Jira ticket, transition ticket to Done
 - [ ] Persist `QuizAttempt`
