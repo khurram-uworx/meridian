@@ -97,4 +97,38 @@ public class JiraService : IJiraService
         var result = await _jiraClient.Issue.SearchAsync(jql, new Page { StartAt = 0, MaxResults = 1 });
         return result.FirstOrDefault()?.Key;
     }
+
+    public async Task<IEnumerable<JiraStoryStatus>> GetStoriesForEpicAsync(string epicKey)
+    {
+        var jql = $"'Epic Link' = \"{epicKey}\"";
+        var fields = new List<string> { "summary", "status" };
+        if (!string.IsNullOrEmpty(_options.StoryPointsField))
+        {
+            fields.Add(_options.StoryPointsField);
+        }
+
+        var result = await _jiraClient.Issue.SearchAsync(jql, new Page { StartAt = 0, MaxResults = 100 }, fields: fields);
+
+        return result.Select(issue => new JiraStoryStatus(
+            issue.Key,
+            issue.Fields.Summary,
+            issue.Fields.Status.Name,
+            GetStoryPoints(issue)
+        ));
+    }
+
+    private int GetStoryPoints(Issue issue)
+    {
+        if (string.IsNullOrEmpty(_options.StoryPointsField)) return 0;
+
+        var value = ((IssueV2)issue).GetCustomField(_options.StoryPointsField);
+        if (value == null) return 0;
+
+        if (int.TryParse(value.ToString(), out int points))
+        {
+            return points;
+        }
+
+        return 0;
+    }
 }

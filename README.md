@@ -101,7 +101,7 @@ The first working version does exactly this and nothing more:
 - [x] Jira Stories get MD content as description + frontmatter mapped to fields
 - [x] Quiz sections generate a Meridian-hosted link embedded in the ticket
 - [x] Meridian quiz UI — MCQ, submit, write score back as Jira comment, transition ticket
-- [ ] Learner progress view — Meridian polls Jira for its known Epics and renders completion state
+- [x] Learner progress view — Meridian polls Jira for its known Epics and renders completion state
 - [ ] Learner history — "Ben completed X101 on Jan 3, X102 enrolled Mar 25"
 
 **Out of PoC scope:** live sync from repo changes (post-PoC: diff from enrollment SHA)
@@ -155,8 +155,8 @@ EF Core In-Memory for PoC. Migration to Postgres or SQL Server requires zero mod
 - [x] Persist `QuizAttempt`
 
 ### Phase 4 — Progress & History View
-- [ ] `/learner/{id}` — poll Jira for all known Epics, render ticket states as progress
-- [ ] Course completion % from Done tickets / total tickets
+- [x] `/learner/{id}/progress` — poll Jira for all known Epics, render ticket states as progress
+- [x] Course completion % from Done tickets / total tickets
 - [ ] Enrollment history timeline across courses
 
 ---

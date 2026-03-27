@@ -152,4 +152,33 @@ public class EnrollmentServiceTests
         Assert.That(_dbContext.Learners.Count(), Is.EqualTo(1));
         Assert.That(_dbContext.Learners.Single().Email, Is.EqualTo(learnerEmail));
     }
+
+    [Test]
+    public async Task GetEnrollmentsByLearnerIdAsync_ReturnsEnrollmentsWithCourse()
+    {
+        // Arrange
+        var learner = new Learner { Email = "test@example.com", Name = "Test", JiraAccountId = "test" };
+        _dbContext.Learners.Add(learner);
+        var course = new Course { SourceType = "Local", SourceLocator = "loc", CoursePath = "path", CourseYamlSnapshot = "{}" };
+        _dbContext.Courses.Add(course);
+        await _dbContext.SaveChangesAsync();
+
+        var enrollment = new Enrollment
+        {
+            LearnerId = learner.Id,
+            CourseId = course.Id,
+            JiraEpicKey = "LEARN-1",
+            EnrolledAt = DateTime.UtcNow
+        };
+        _dbContext.Enrollments.Add(enrollment);
+        await _dbContext.SaveChangesAsync();
+
+        // Act
+        var result = await _enrollmentService.GetEnrollmentsByLearnerIdAsync(learner.Id);
+
+        // Assert
+        Assert.That(result.Count(), Is.EqualTo(1));
+        Assert.That(result.First().JiraEpicKey, Is.EqualTo("LEARN-1"));
+        Assert.That(result.First().Course, Is.Not.Null);
+    }
 }

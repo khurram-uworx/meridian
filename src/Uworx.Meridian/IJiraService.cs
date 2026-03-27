@@ -44,4 +44,11 @@ public interface IJiraService
     /// <param name="label">The label to search for.</param>
     /// <returns>The story key, or null if not found.</returns>
     Task<string?> FindStoryKeyByLabelAsync(string epicKey, string label);
+
+    /// <summary>
+    /// Gets all stories for a specific Epic.
+    /// </summary>
+    /// <param name="epicKey">The key of the parent Epic.</param>
+    /// <returns>A list of story statuses.</returns>
+    Task<IEnumerable<JiraStoryStatus>> GetStoriesForEpicAsync(string epicKey);
 }
