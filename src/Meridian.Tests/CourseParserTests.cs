@@ -1,15 +1,15 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Uworx.Meridian.CourseSource;
 using Uworx.Meridian.Infrastructure.CourseSource;
+using static Meridian.Tests.NUnitConstants;
 
 namespace Meridian.Tests;
 
-[TestFixture]
-public class CourseParserTests
+[TestFixture, Category(TestCatory.Unit)]
+class CourseParserTests
 {
-    private string _tempCoursePath;
-    private CourseParser _parser;
+    string? _tempCoursePath;
+    CourseParser? _parser;
 
     [SetUp]
     public void Setup()
@@ -19,7 +19,7 @@ public class CourseParserTests
 
         var sourceResolver = new CourseSourceResolver();
         var configParser = new CourseConfigParser();
-        var sectionParser = new SectionParser(NullLogger<SectionParser>.Instance);
+        var sectionParser = new SectionParser();
         _parser = new CourseParser(sourceResolver, configParser, sectionParser);
     }
 

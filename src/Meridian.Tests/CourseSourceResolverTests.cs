@@ -2,18 +2,40 @@ using LibGit2Sharp;
 using NUnit.Framework;
 using Uworx.Meridian.CourseSource;
 using Uworx.Meridian.Infrastructure.CourseSource;
+using static Meridian.Tests.NUnitConstants;
 
 namespace Meridian.Tests;
 
-[TestFixture]
-public class CourseSourceResolverTests
+[TestFixture, Category(TestCatory.Unit)]
+class CourseSourceResolverTests
 {
-    private CourseSourceResolver _resolver;
+    static void deleteDirectory(string path)
+    {
+        if (!Directory.Exists(path)) return;
+
+        // LibGit2Sharp leaves read-only files in .git folder, need to handle them
+        foreach (var directory in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
+            removeReadOnlyAttribute(directory);
+
+        foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
+            removeReadOnlyAttribute(file);
+
+        Directory.Delete(path, true);
+    }
+
+    static void removeReadOnlyAttribute(string path)
+    {
+        var attributes = File.GetAttributes(path);
+        if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+            File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
+    }
+
+    CourseSourceResolver? resolver;
 
     [SetUp]
     public void SetUp()
     {
-        _resolver = new CourseSourceResolver();
+        resolver = new CourseSourceResolver();
     }
 
     [Test]
@@ -27,7 +49,7 @@ public class CourseSourceResolverTests
             var locator = new CourseSourceLocator(CourseSourceType.LocalFolder, tempPath);
 
             // Act
-            var result = await _resolver.ResolveAsync(locator);
+            var result = await resolver.ResolveAsync(locator);
 
             // Assert
             Assert.That(result.FolderPath, Is.EqualTo(tempPath));
@@ -48,7 +70,7 @@ public class CourseSourceResolverTests
         var locator = new CourseSourceLocator(CourseSourceType.LocalFolder, nonExistentPath);
 
         // Act & Assert
-        Assert.ThrowsAsync<DirectoryNotFoundException>(async () => await _resolver.ResolveAsync(locator));
+        Assert.ThrowsAsync<DirectoryNotFoundException>(async () => await resolver.ResolveAsync(locator));
     }
 
     [Test]
@@ -68,10 +90,10 @@ public class CourseSourceResolverTests
             var commit = repo.Commit("Initial commit", signature, signature);
             var expectedSha = commit.Sha;
 
-            var locator = new CourseSourceLocator(CourseSourceType.GitRoot, repoPath);
+            var locator = new CourseSourceLocator(CourseSourceType.Git, repoPath);
 
             // Act
-            var result = await _resolver.ResolveAsync(locator);
+            var result = await resolver.ResolveAsync(locator);
 
             // Assert
             try
@@ -83,12 +105,12 @@ public class CourseSourceResolverTests
             finally
             {
                 // Cleanup temp clone
-                DeleteDirectory(result.FolderPath);
+                deleteDirectory(result.FolderPath);
             }
         }
 
         // Cleanup source repo
-        DeleteDirectory(repoPath);
+        deleteDirectory(repoPath);
     }
 
     [Test]
@@ -110,10 +132,10 @@ public class CourseSourceResolverTests
             var signature = new Signature("Tester", "tester@example.com", DateTimeOffset.Now);
             repo.Commit("Initial commit", signature, signature);
 
-            var locator = new CourseSourceLocator(CourseSourceType.GitSubfolder, repoPath, subfolder);
+            var locator = new CourseSourceLocator(CourseSourceType.Git, repoPath, subfolder);
 
             // Act
-            var result = await _resolver.ResolveAsync(locator);
+            var result = await resolver.ResolveAsync(locator);
 
             // Assert
             try
@@ -126,11 +148,11 @@ public class CourseSourceResolverTests
             {
                 // Get the root of the clone to delete it all
                 var cloneRoot = result.FolderPath.Substring(0, result.FolderPath.IndexOf(subfolder.Replace('/', Path.DirectorySeparatorChar)) - 1);
-                DeleteDirectory(cloneRoot);
+                deleteDirectory(cloneRoot);
             }
         }
 
-        DeleteDirectory(repoPath);
+        deleteDirectory(repoPath);
     }
 
     [Test]
@@ -149,39 +171,12 @@ public class CourseSourceResolverTests
             var signature = new Signature("Tester", "tester@example.com", DateTimeOffset.Now);
             repo.Commit("Initial commit", signature, signature);
 
-            var locator = new CourseSourceLocator(CourseSourceType.GitSubfolder, repoPath, "../../etc/passwd");
+            var locator = new CourseSourceLocator(CourseSourceType.Git, repoPath, "../../etc/passwd");
 
             // Act & Assert
-            Assert.ThrowsAsync<ArgumentException>(async () => await _resolver.ResolveAsync(locator));
+            Assert.ThrowsAsync<ArgumentException>(async () => await resolver.ResolveAsync(locator));
         }
 
-        DeleteDirectory(repoPath);
-    }
-
-    private static void DeleteDirectory(string path)
-    {
-        if (!Directory.Exists(path)) return;
-
-        // LibGit2Sharp leaves read-only files in .git folder, need to handle them
-        foreach (var directory in Directory.GetDirectories(path, "*", SearchOption.AllDirectories))
-        {
-            RemoveReadOnlyAttribute(directory);
-        }
-
-        foreach (var file in Directory.GetFiles(path, "*", SearchOption.AllDirectories))
-        {
-            RemoveReadOnlyAttribute(file);
-        }
-
-        Directory.Delete(path, true);
-    }
-
-    private static void RemoveReadOnlyAttribute(string path)
-    {
-        var attributes = File.GetAttributes(path);
-        if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-        {
-            File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
-        }
+        deleteDirectory(repoPath);
     }
 }

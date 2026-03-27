@@ -1,30 +1,28 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Uworx.Meridian.Infrastructure.CourseSource;
+using static Meridian.Tests.NUnitConstants;
 
 namespace Meridian.Tests;
 
-[TestFixture]
-public class SectionParserTests
+[TestFixture, Category(TestCatory.Unit)]
+class SectionParserTests
 {
-    private string _tempCoursePath;
-    private SectionParser _parser;
+    string? tempCoursePath;
+    SectionParser? parser;
 
     [SetUp]
     public void Setup()
     {
-        _tempCoursePath = Path.Combine(Path.GetTempPath(), "meridian_section_tests", Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_tempCoursePath);
-        _parser = new SectionParser(NullLogger<SectionParser>.Instance);
+        tempCoursePath = Path.Combine(Path.GetTempPath(), "meridian_section_tests", Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempCoursePath);
+        parser = new SectionParser();
     }
 
     [TearDown]
     public void TearDown()
     {
-        if (Directory.Exists(_tempCoursePath))
-        {
-            Directory.Delete(_tempCoursePath, true);
-        }
+        if (Directory.Exists(tempCoursePath))
+            Directory.Delete(tempCoursePath, true);
     }
 
     [Test]
@@ -34,7 +32,6 @@ public class SectionParserTests
         var content = @"---
 title: ""Introduction to CI/CD""
 order: 3
-type: lesson
 story_points: 3
 quiz: intro-cicd-q1
 depends_on: 02-prerequisites
@@ -42,21 +39,20 @@ depends_on: 02-prerequisites
 
 ## What is CI/CD?
 Content here.";
-        File.WriteAllText(Path.Combine(_tempCoursePath, "01-intro.md"), content);
+        File.WriteAllText(Path.Combine(tempCoursePath, "01-intro.md"), content);
 
         // Act
-        var result = _parser.ParseSections(_tempCoursePath).ToList();
+        var result = parser.ParseSections(tempCoursePath).ToList();
 
         // Assert
         Assert.That(result.Count, Is.EqualTo(1));
         var section = result[0];
         Assert.That(section.Title, Is.EqualTo("Introduction to CI/CD"));
         Assert.That(section.Order, Is.EqualTo(3));
-        Assert.That(section.Type, Is.EqualTo("lesson"));
         Assert.That(section.StoryPoints, Is.EqualTo(3));
         Assert.That(section.QuizId, Is.EqualTo("intro-cicd-q1"));
         Assert.That(section.DependsOn, Is.EqualTo("02-prerequisites"));
-        Assert.That(section.BodyMarkdown, Is.EqualTo("## What is CI/CD?\nContent here."));
+        Assert.That(section.BodyMarkdown, Is.EqualTo(string.Format("## What is CI/CD?{0}Content here.", Environment.NewLine)));
     }
 
     [Test]
@@ -64,17 +60,16 @@ Content here.";
     {
         // Arrange
         var content = @"## Just Markdown Content";
-        File.WriteAllText(Path.Combine(_tempCoursePath, "05-setup_guide.md"), content);
+        File.WriteAllText(Path.Combine(tempCoursePath, "05-setup_guide.md"), content);
 
         // Act
-        var result = _parser.ParseSections(_tempCoursePath).ToList();
+        var result = parser.ParseSections(tempCoursePath).ToList();
 
         // Assert
         Assert.That(result.Count, Is.EqualTo(1));
         var section = result[0];
         Assert.That(section.Title, Is.EqualTo("setup guide"));
         Assert.That(section.Order, Is.EqualTo(5));
-        Assert.That(section.Type, Is.EqualTo("lesson"));
         Assert.That(section.BodyMarkdown, Is.EqualTo("## Just Markdown Content"));
     }
 
@@ -90,11 +85,11 @@ Second";
 order: 1
 ---
 First";
-        File.WriteAllText(Path.Combine(_tempCoursePath, "a.md"), file1);
-        File.WriteAllText(Path.Combine(_tempCoursePath, "b.md"), file2);
+        File.WriteAllText(Path.Combine(tempCoursePath, "a.md"), file1);
+        File.WriteAllText(Path.Combine(tempCoursePath, "b.md"), file2);
 
         // Act
-        var result = _parser.ParseSections(_tempCoursePath).ToList();
+        var result = parser.ParseSections(tempCoursePath).ToList();
 
         // Assert
         Assert.That(result.Count, Is.EqualTo(2));
@@ -106,29 +101,32 @@ First";
     public void ParseSections_BodyMarkdown_ExtractsEverythingAfterClosingDashes()
     {
         // Arrange
-        var content = @"---
-title: Test
----
-This is the body.
-It has multiple lines.
----
-Even more dashes.";
-        File.WriteAllText(Path.Combine(_tempCoursePath, "test.md"), content);
+        var content = """
+            ---
+            title: Test
+            ---
+            This is the body.
+            It has multiple lines.
+            ---
+            Even more dashes.
+            """;
+        File.WriteAllText(Path.Combine(tempCoursePath, "test.md"), content);
 
         // Act
-        var result = _parser.ParseSections(_tempCoursePath).ToList();
+        var result = parser.ParseSections(tempCoursePath).ToList();
 
         // Assert
-        Assert.That(result[0].BodyMarkdown, Is.EqualTo("This is the body.\nIt has multiple lines.\n---\nEven more dashes."));
+        Assert.That(result[0].BodyMarkdown, Is.EqualTo(
+            string.Format("This is the body.{0}It has multiple lines.{0}---{0}Even more dashes.", Environment.NewLine)));
     }
 
     [Test]
-    public void ParseSections_WithQuizQuestions_PopulatesQuizQuestions()
+    public void ParseSections_WithQuizQuestionsOnLesson_PopulatesQuizQuestions()
     {
         // Arrange
         var content = @"---
 title: ""Quiz Time""
-type: quiz
+quiz: quiz-time-q1
 quiz_questions:
   - text: ""What is 2+2?""
     options: [""3"", ""4"", ""5""]
@@ -138,15 +136,15 @@ quiz_questions:
     correct_index: 2
 ---
 Good luck!";
-        File.WriteAllText(Path.Combine(_tempCoursePath, "quiz.md"), content);
+        File.WriteAllText(Path.Combine(tempCoursePath, "quiz.md"), content);
 
         // Act
-        var result = _parser.ParseSections(_tempCoursePath).ToList();
+        var result = parser.ParseSections(tempCoursePath).ToList();
 
         // Assert
         Assert.That(result.Count, Is.EqualTo(1));
         var section = result[0];
-        Assert.That(section.Type, Is.EqualTo("quiz"));
+        Assert.That(section.QuizId, Is.EqualTo("quiz-time-q1"));
         Assert.That(section.QuizQuestions.Count(), Is.EqualTo(2));
 
         var q1 = section.QuizQuestions.First();
@@ -161,23 +159,24 @@ Good luck!";
     }
 
     [Test]
-    public void ParseSections_TypeQuizWithNoQuestions_LogsWarningAndSetsTypeToLesson()
+    public void ParseSections_TypeFrontmatter_IsIgnored()
     {
         // Arrange
         var content = @"---
 title: ""Empty Quiz""
-type: quiz
+type: lesson
+quiz: empty-quiz-q1
 ---
 Wait, where are the questions?";
-        File.WriteAllText(Path.Combine(_tempCoursePath, "empty-quiz.md"), content);
+        File.WriteAllText(Path.Combine(tempCoursePath, "empty-quiz.md"), content);
 
         // Act
-        var result = _parser.ParseSections(_tempCoursePath).ToList();
+        var result = parser.ParseSections(tempCoursePath).ToList();
 
         // Assert
         Assert.That(result.Count, Is.EqualTo(1));
         var section = result[0];
-        Assert.That(section.Type, Is.EqualTo("lesson"));
+        Assert.That(section.QuizId, Is.EqualTo("empty-quiz-q1"));
         Assert.That(section.QuizQuestions.Count(), Is.EqualTo(0));
     }
 }

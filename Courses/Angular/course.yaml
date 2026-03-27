@@ -1,0 +1,21 @@
+---
+id: FE-ANG-101
+title: "Frontend / Angular Training"
+version: 0.1.0
+author: meridian
+epic_label: "meridian"
+---
+
+This course enables new hires to become productive members of frontend teams through structured, hands-on training in Angular and its ecosystem.
+
+Most participants are new to professional frontend development, though some may have prior academic or project exposure.
+
+By the end of the course, trainees should be able to:
+
+- Contribute to real sprint tasks in Angular projects.
+- Follow team coding standards and architectural patterns.
+- Debug and reason about frontend issues using modern tooling.
+- Collaborate effectively in a professional frontend workflow.
+
+Expected outcome:
+Trainees will be confident in reading, writing, and debugging Angular codebases and ready to take on beginner-to-intermediate sprint stories in active projects.

@@ -3,11 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Uworx.Meridian.Configuration;
+using static Meridian.Tests.NUnitConstants;
 
 namespace Meridian.Tests;
 
-[TestFixture]
-public class ConfigurationTests
+[TestFixture, Category(TestCatory.Unit)]
+class ConfigurationTests
 {
     [Test]
     public void JiraOptions_ShouldBindCorrectlly()

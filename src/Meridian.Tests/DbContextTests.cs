@@ -1,14 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using NUnit.Framework;
-using Uworx.Meridian.Entities;
 using Uworx.Meridian.Infrastructure.Data;
+using static Meridian.Tests.NUnitConstants;
 
 namespace Meridian.Tests;
 
-[TestFixture]
-public class DbContextTests
+[TestFixture, Category(TestCatory.Unit)]
+class DbContextTests
 {
-    private MeridianDbContext _context;
+    MeridianDbContext? context;
 
     [SetUp]
     public void Setup()
@@ -17,20 +17,20 @@ public class DbContextTests
             .UseInMemoryDatabase(databaseName: "TestMeridianDb")
             .Options;
 
-        _context = new MeridianDbContext(options);
+        context = new MeridianDbContext(options);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _context.Dispose();
+        context.Dispose();
     }
 
     [Test]
     public void Database_EnsureCreated_Succeeds()
     {
         // Act
-        var created = _context.Database.EnsureCreated();
+        var created = context.Database.EnsureCreated();
 
         // Assert
         Assert.That(created, Is.True.Or.False); // Returns true if DB was just created, false if it already existed
@@ -40,9 +40,9 @@ public class DbContextTests
     public void DbSets_AreQueryable()
     {
         // Act & Assert
-        Assert.DoesNotThrow(() => _context.Learners.Any());
-        Assert.DoesNotThrow(() => _context.Courses.Any());
-        Assert.DoesNotThrow(() => _context.Enrollments.Any());
-        Assert.DoesNotThrow(() => _context.QuizAttempts.Any());
+        Assert.DoesNotThrow(() => context.Learners.Any());
+        Assert.DoesNotThrow(() => context.Courses.Any());
+        Assert.DoesNotThrow(() => context.Enrollments.Any());
+        Assert.DoesNotThrow(() => context.QuizAttempts.Any());
     }
 }

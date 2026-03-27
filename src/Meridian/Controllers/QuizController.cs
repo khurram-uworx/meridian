@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 using Uworx.Meridian;
 using Uworx.Meridian.CourseSource;
 using Uworx.Meridian.Entities;
@@ -9,10 +10,10 @@ namespace Meridian.Controllers;
 
 public class QuizController : Controller
 {
-    private readonly MeridianDbContext _dbContext;
-    private readonly ICourseParser _courseParser;
-    private readonly IJiraService _jiraService;
-    private readonly ILogger<QuizController> _logger;
+    readonly MeridianDbContext dbContext;
+    readonly ICourseParser courseParser;
+    readonly IJiraService jiraService;
+    readonly ILogger<QuizController> logger;
 
     public QuizController(
         MeridianDbContext dbContext,
@@ -20,23 +21,21 @@ public class QuizController : Controller
         IJiraService jiraService,
         ILogger<QuizController> logger)
     {
-        _dbContext = dbContext;
-        _courseParser = courseParser;
-        _jiraService = jiraService;
-        _logger = logger;
+        this.dbContext = dbContext;
+        this.courseParser = courseParser;
+        this.jiraService = jiraService;
+        this.logger = logger;
     }
 
     [HttpGet("/quiz/{quizId}")]
     public async Task<IActionResult> Index(string quizId, [FromQuery] int enrollment)
     {
-        var enrollmentRecord = await _dbContext.Enrollments
+        var enrollmentRecord = await dbContext.Enrollments
             .Include(e => e.Course)
             .FirstOrDefaultAsync(e => e.Id == enrollment);
 
         if (enrollmentRecord == null)
-        {
             return NotFound("Enrollment not found.");
-        }
 
         var source = new CourseSourceLocator(
             Enum.Parse<CourseSourceType>(enrollmentRecord.Course.SourceType),
@@ -44,13 +43,12 @@ public class QuizController : Controller
             enrollmentRecord.Course.CoursePath
         );
 
-        var parsedCourse = await _courseParser.ParseAsync(source);
-        var section = parsedCourse.Sections.FirstOrDefault(s => s.QuizId == quizId && s.Type == "quiz");
+        var parsedCourse = await courseParser.ParseAsync(source);
+        var section = parsedCourse.Sections.FirstOrDefault(s =>
+            string.Equals(s.QuizId, quizId, StringComparison.OrdinalIgnoreCase) && s.QuizQuestions.Any());
 
         if (section == null)
-        {
             return NotFound("Quiz not found in this course.");
-        }
 
         ViewBag.EnrollmentId = enrollment;
         ViewBag.QuizId = quizId;
@@ -63,15 +61,13 @@ public class QuizController : Controller
     [HttpPost("/quiz/{quizId}")]
     public async Task<IActionResult> Submit(string quizId, [FromQuery] int enrollment, IFormCollection form)
     {
-        var enrollmentRecord = await _dbContext.Enrollments
+        var enrollmentRecord = await dbContext.Enrollments
             .Include(e => e.Course)
             .Include(e => e.Learner)
             .FirstOrDefaultAsync(e => e.Id == enrollment);
 
         if (enrollmentRecord == null)
-        {
             return NotFound("Enrollment not found.");
-        }
 
         var source = new CourseSourceLocator(
             Enum.Parse<CourseSourceType>(enrollmentRecord.Course.SourceType),
@@ -79,23 +75,18 @@ public class QuizController : Controller
             enrollmentRecord.Course.CoursePath
         );
 
-        var parsedCourse = await _courseParser.ParseAsync(source);
-        var section = parsedCourse.Sections.FirstOrDefault(s => s.QuizId == quizId && s.Type == "quiz");
+        var parsedCourse = await courseParser.ParseAsync(source);
+        var section = parsedCourse.Sections.FirstOrDefault(s =>
+            string.Equals(s.QuizId, quizId, StringComparison.OrdinalIgnoreCase) && s.QuizQuestions.Any());
 
         if (section == null)
-        {
             return NotFound("Quiz not found.");
-        }
 
         int score = 0;
         var questions = section.QuizQuestions.ToList();
         for (int i = 0; i < questions.Count; i++)
-        {
             if (int.TryParse(form[$"question_{i}"], out int selectedIndex) && selectedIndex == questions[i].CorrectIndex)
-            {
                 score++;
-            }
-        }
 
         // 1. Persist QuizAttempt
         var attempt = new QuizAttempt
@@ -110,29 +101,50 @@ public class QuizController : Controller
         // 2. Jira Integration
         try
         {
-            var storyKey = await _jiraService.FindStoryKeyByLabelAsync(enrollmentRecord.JiraEpicKey, quizId);
+            var storyKey = await jiraService.FindStoryKeyByLabelAsync(enrollmentRecord.JiraEpicKey, quizId);
             if (!string.IsNullOrEmpty(storyKey))
             {
-                var comment = $"Quiz Attempt Details:\n" +
-                              $"Learner: {enrollmentRecord.Learner.Email}\n" +
-                              $"Score: {score} / {questions.Count}\n" +
-                              $"Attempted At: {attempt.AttemptedAt:yyyy-MM-dd HH:mm:ss}";
+                var commentBuilder = new StringBuilder();
+                commentBuilder.AppendLine("Quiz Attempt Details:");
+                commentBuilder.AppendLine($"Section: {section.Title}");
+                commentBuilder.AppendLine($"Quiz Id: {quizId}");
+                commentBuilder.AppendLine($"Learner: {enrollmentRecord.Learner.Email}");
+                commentBuilder.AppendLine($"Score: {score} / {questions.Count}");
+                commentBuilder.AppendLine($"Attempted At: {attempt.AttemptedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                commentBuilder.AppendLine();
+                commentBuilder.AppendLine("Questions and Answers:");
 
-                attempt.JiraCommentId = await _jiraService.PostCommentAsync(storyKey, comment);
-                await _jiraService.TransitionToAsync(storyKey, "In Review");
+                for (int i = 0; i < questions.Count; i++)
+                {
+                    var question = questions[i];
+                    var hasAnswer = int.TryParse(form[$"question_{i}"], out int selectedIndex);
+                    var selectedAnswer = hasAnswer && selectedIndex >= 0 && selectedIndex < question.Options.Count
+                        ? question.Options[selectedIndex]
+                        : "(no answer)";
+                    var correctAnswer = question.CorrectIndex >= 0 && question.CorrectIndex < question.Options.Count
+                        ? question.Options[question.CorrectIndex]
+                        : "(invalid correct answer index)";
+                    var isCorrect = hasAnswer && selectedIndex == question.CorrectIndex ? "Correct" : "Incorrect";
+
+                    commentBuilder.AppendLine($"{i + 1}. {question.Text}");
+                    commentBuilder.AppendLine($"   Learner Answer: {selectedAnswer}");
+                    commentBuilder.AppendLine($"   Correct Answer: {correctAnswer}");
+                    commentBuilder.AppendLine($"   Result: {isCorrect}");
+                }
+
+                attempt.JiraCommentId = await jiraService.PostCommentAsync(storyKey, commentBuilder.ToString());
+                await jiraService.TransitionToAsync(storyKey, "In Review");
             }
             else
-            {
-                _logger.LogWarning("Could not find Jira Story for quiz {QuizId} in epic {EpicKey}", quizId, enrollmentRecord.JiraEpicKey);
-            }
+                logger.LogWarning("Could not find Jira Story for quiz {QuizId} in epic {EpicKey}", quizId, enrollmentRecord.JiraEpicKey);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating Jira for quiz submission.");
+            logger.LogError(ex, "Error updating Jira for quiz submission.");
         }
 
-        _dbContext.QuizAttempts.Add(attempt);
-        await _dbContext.SaveChangesAsync();
+        dbContext.QuizAttempts.Add(attempt);
+        await dbContext.SaveChangesAsync();
 
         return View("Finished", attempt);
     }

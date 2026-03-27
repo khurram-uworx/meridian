@@ -5,27 +5,15 @@ namespace Uworx.Meridian.Infrastructure.CourseSource;
 
 public class CourseSourceResolver : ICourseSourceResolver
 {
-    public async Task<CourseSourceResult> ResolveAsync(CourseSourceLocator locator)
-    {
-        return locator.SourceType switch
-        {
-            CourseSourceType.LocalFolder => await ResolveLocalFolderAsync(locator),
-            CourseSourceType.GitRoot or CourseSourceType.GitSubfolder => await ResolveGitAsync(locator),
-            _ => throw new NotSupportedException($"Source type {locator.SourceType} is not supported.")
-        };
-    }
-
-    private Task<CourseSourceResult> ResolveLocalFolderAsync(CourseSourceLocator locator)
+    Task<CourseSourceResult> resolveLocalFolderAsync(CourseSourceLocator locator)
     {
         if (!Directory.Exists(locator.Uri))
-        {
             throw new DirectoryNotFoundException($"Local folder not found: {locator.Uri}");
-        }
 
         return Task.FromResult(new CourseSourceResult(locator.Uri, null));
     }
 
-    private Task<CourseSourceResult> ResolveGitAsync(CourseSourceLocator locator)
+    Task<CourseSourceResult> resolveGitAsync(CourseSourceLocator locator)
     {
         var tempPath = Path.Combine(Path.GetTempPath(), "meridian", Guid.NewGuid().ToString());
         Directory.CreateDirectory(tempPath);
@@ -39,27 +27,31 @@ public class CourseSourceResolver : ICourseSourceResolver
         }
 
         var resolvedPath = tempPath;
-        if (locator.SourceType == CourseSourceType.GitSubfolder && !string.IsNullOrEmpty(locator.SubPath))
+        if (!string.IsNullOrEmpty(locator.SubPath))
         {
             if (Path.IsPathRooted(locator.SubPath) || locator.SubPath.Contains(".."))
-            {
                 throw new ArgumentException("Invalid subpath provided.", nameof(locator));
-            }
 
             resolvedPath = Path.GetFullPath(Path.Combine(tempPath, locator.SubPath));
 
             // Safety check to ensure the resolved path is still within the temp directory
             if (!resolvedPath.StartsWith(tempPath, StringComparison.OrdinalIgnoreCase))
-            {
                 throw new ArgumentException("Invalid subpath provided.", nameof(locator));
-            }
 
             if (!Directory.Exists(resolvedPath))
-            {
                 throw new DirectoryNotFoundException($"Subfolder not found in Git repository: {locator.SubPath}");
-            }
         }
 
         return Task.FromResult(new CourseSourceResult(resolvedPath, sourceRevision));
+    }
+
+    public async Task<CourseSourceResult> ResolveAsync(CourseSourceLocator locator)
+    {
+        return locator.SourceType switch
+        {
+            CourseSourceType.LocalFolder => await resolveLocalFolderAsync(locator),
+            CourseSourceType.Git => await resolveGitAsync(locator),
+            _ => throw new NotSupportedException($"Source type {locator.SourceType} is not supported.")
+        };
     }
 }

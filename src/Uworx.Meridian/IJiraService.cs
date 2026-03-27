@@ -1,5 +1,7 @@
 namespace Uworx.Meridian;
 
+public record JiraStoryStatus(string Key, string Title, string Status, int StoryPoints);
+
 public interface IJiraService
 {
     /// <summary>
@@ -8,8 +10,9 @@ public interface IJiraService
     /// <param name="projectKey">The Jira project key (e.g., "LEARN").</param>
     /// <param name="title">The title of the Epic.</param>
     /// <param name="label">A label to apply to the Epic.</param>
+    /// <param name="description">Optional Epic description.</param>
     /// <returns>The key of the created Epic (e.g., "LEARN-42").</returns>
-    Task<string> CreateEpicAsync(string projectKey, string title, string label);
+    Task<string> CreateEpicAsync(string projectKey, string title, string label, string? description = null);
 
     /// <summary>
     /// Creates a Story in Jira and links it to an Epic.
@@ -18,7 +21,7 @@ public interface IJiraService
     /// <param name="title">The title of the Story.</param>
     /// <param name="description">The description of the Story (Markdown or plain text).</param>
     /// <param name="storyPoints">The story points to assign.</param>
-    /// <param name="label">A label to apply (e.g., section type like lesson, quiz, lab).</param>
+    /// <param name="label">A label to apply (e.g., quiz id or default section label).</param>
     /// <returns>The key of the created Story.</returns>
     Task<string> CreateStoryAsync(string epicKey, string title, string description, int storyPoints, string label);
 

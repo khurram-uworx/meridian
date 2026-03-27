@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Uworx.Meridian.CourseSource;
 using Uworx.Meridian.Entities;
 

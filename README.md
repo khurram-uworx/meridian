@@ -15,6 +15,8 @@ Every other LMS is a third system. Engineers already live in Git and Jira. Merid
 - **Progress** is just Jira — same board, same workflow, same process your team already uses
 - **Quizzes and progress views** are the only UI Meridian provides — because Jira can't render MCQs
 
+![PoC:Meridian](images/screenshot.png)
+
 ---
 
 ## How It Works
@@ -48,7 +50,6 @@ Each Markdown file in a course folder uses YAML frontmatter to tell Meridian how
 ---
 title: "Introduction to CI/CD"
 order: 3
-type: lesson          # lesson | quiz | lab
 story_points: 3
 quiz: intro-cicd-q1   # omit if no quiz
 depends_on: 02-prerequisites
@@ -72,7 +73,13 @@ version: 1.0.0
 author: platform-team
 jira_project: LEARN
 epic_label: "meridian"
+epic_description: |
+  This course prepares backend engineers for CI/CD workflows.
+  It is used as the Jira Epic description during enrollment.
 ```
+
+`jira_project` is optional, if missing, Meridian will pick/use the global jira_project (appsettings.json)
+`epic_description` is optional, Meridian also accepts intro text after a `---` separator in `course.yaml` and uses it as the Epic description.
 
 ---
 
@@ -99,7 +106,7 @@ The first working version does exactly this and nothing more:
   - Absolute local folder path (for example, `C:\courses\course1`)
 - [x] `POST /enroll` — takes learner + course source locator, resolves the course folder, records source revision when applicable, creates Jira Epic + Stories
 - [x] Jira Stories get MD content as description + frontmatter mapped to fields
-- [x] Quiz sections generate a Meridian-hosted link embedded in the ticket
+- [x] Any section can optionally include a quiz; Meridian adds a hosted quiz link as a Jira comment
 - [x] Meridian quiz UI — MCQ, submit, write score back as Jira comment, transition ticket
 - [x] Learner progress view — Meridian polls Jira for its known Epics and renders completion state
 - [x] Learner history — "Ben completed X101 on Jan 3, X102 enrolled Mar 25"
@@ -121,46 +128,6 @@ EF Core In-Memory for PoC. Migration to Postgres or SQL Server requires zero mod
 
 ---
 
-## Plan of Action
-
-### Phase 0 — Repo & Skeleton
-- [x] GitHub repo is initialized: `meridian`
-- [x] `.NET 10` solution exists: `Meridian.slnx`
-  - `Meridian` — ASP.NET MVC project
-  - `Uworx.Meridian` — domain models, interfaces
-  - `Uworx.Meridian.Infrastructure` — EF, Git, Jira integrations
-- [x] EF In-Memory wired up, migrations ready to swap provider
-- [x] `appsettings.json` stubs for Jira base URL, API token, default project key
-
-### Phase 1 — Course Parsing
-- [x] Resolve course source:
-  - Git URL (clone via LibGit2Sharp)
-  - Local absolute path (read directly from disk)
-  - Existing local repo + course subfolder path
-- [x] Parse `course.yaml` into `CourseConfig`
-- [x] Parse MD frontmatter (YAML) from each `.md` file into `SectionDefinition`
-- [x] Unit tests: given source type + course path, assert correct sections are parsed in order
-- [x] Integrated `ICourseParser` service
-
-### Phase 2 — Enrollment & Jira Scaffolding
-- [x] Jira service: `CreateEpic()`, `CreateStory(epicKey, title, description, storyPoints, label)`
-- [x] Enrollment flow: resolve source → parse → create Epic → loop sections → create Stories
-- [x] Persist `Enrollment` record with `SourceRevision` (Git SHA or `null` for local folder) and `JiraEpicKey`
-- [x] Simple Razor page: enroll form (learner email + source locator + optional course subpath) → confirm page showing Epic link
-
-### Phase 3 — Quiz Flow
-- [x] Quiz definition in MD frontmatter (question/options in YAML or linked JSON)
-- [x] Meridian quiz UI: `/quiz/{quizId}?enrollment={id}` — render MCQs, submit
-- [x] On submit: calculate score, POST comment to Jira ticket, transition ticket to Done
-- [x] Persist `QuizAttempt`
-
-### Phase 4 — Progress & History View
-- [x] `/learner/{id}/progress` — poll Jira for all known Epics, render ticket states as progress
-- [x] Course completion % from Done tickets / total tickets
-- [x] Enrollment history timeline across courses
-
----
-
 ## Running Locally (PoC)
 
 ```bash
@@ -173,10 +140,10 @@ cd meridian
 cp src/Meridian/appsettings.Development.template.json src/Meridian/appsettings.Development.json
 # PowerShell equivalent:
 Copy-Item src/Meridian/appsettings.Development.template.json src/Meridian/appsettings.Development.json
-# edit: Jira.BaseUrl, Jira.ApiToken, Jira.UserEmail, Jira.ProjectKey
+
+edit: Jira.BaseUrl, Jira.ApiToken, Jira.UserEmail, Jira.ProjectKey in appsettings.Development.json
 
 dotnet run --project src/Meridian
-# → http://localhost:5000
 ```
 
 ---

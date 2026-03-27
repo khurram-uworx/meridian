@@ -1,5 +1,3 @@
-using Dapplo.Jira;
-using Dapplo.Jira.Entities;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Uworx.Meridian.Configuration;
@@ -10,8 +8,8 @@ namespace Meridian.Tests;
 [TestFixture, Category(NUnitConstants.TestCatory.Integration)]
 public class JiraServiceIntegrationTests
 {
-    private JiraService _jiraService;
-    private JiraOptions _options;
+    JiraService? jiraService;
+    JiraOptions? options;
 
     [SetUp]
     public void SetUp()
@@ -21,11 +19,9 @@ public class JiraServiceIntegrationTests
         var jiraToken = Environment.GetEnvironmentVariable("JIRA_TOKEN");
 
         if (string.IsNullOrEmpty(jiraUrl) || string.IsNullOrEmpty(jiraUser) || string.IsNullOrEmpty(jiraToken))
-        {
             Assert.Ignore("Jira integration environment variables are not set.");
-        }
 
-        _options = new JiraOptions
+        options = new JiraOptions
         {
             BaseUrl = jiraUrl!,
             UserEmail = jiraUser!,
@@ -34,7 +30,7 @@ public class JiraServiceIntegrationTests
             StoryPointsField = "customfield_10016"
         };
 
-        _jiraService = new JiraService(Options.Create(_options));
+        jiraService = new JiraService(Options.Create(options));
     }
 
     [Test]
@@ -45,7 +41,7 @@ public class JiraServiceIntegrationTests
         var epicLabel = "meridian-test";
 
         // 1. Create Epic
-        var epicKey = await _jiraService.CreateEpicAsync(_options.ProjectKey, epicTitle, epicLabel);
+        var epicKey = await jiraService.CreateEpicAsync(options.ProjectKey, epicTitle, epicLabel);
         Assert.That(epicKey, Is.Not.Null.And.Not.Empty);
         TestContext.WriteLine($"Created Epic: {epicKey}");
 
@@ -55,7 +51,7 @@ public class JiraServiceIntegrationTests
         var storyPoints = 3;
         var storyLabel = "lesson";
 
-        var storyKey = await _jiraService.CreateStoryAsync(epicKey, storyTitle, storyDescription, storyPoints, storyLabel);
+        var storyKey = await jiraService.CreateStoryAsync(epicKey, storyTitle, storyDescription, storyPoints, storyLabel);
         Assert.That(storyKey, Is.Not.Null.And.Not.Empty);
         TestContext.WriteLine($"Created Story: {storyKey}");
     }

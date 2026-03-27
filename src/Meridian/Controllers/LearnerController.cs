@@ -1,22 +1,21 @@
+using Meridian.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Meridian.Models;
+using System.Text.Json;
 using Uworx.Meridian;
 using Uworx.Meridian.Configuration;
-using Uworx.Meridian.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 using Uworx.Meridian.CourseSource;
+using Uworx.Meridian.Infrastructure.Data;
 
 namespace Meridian.Controllers;
 
 public class LearnerController : Controller
 {
-    private readonly MeridianDbContext _dbContext;
-    private readonly IEnrollmentService _enrollmentService;
-    private readonly IJiraService _jiraService;
-    private readonly JiraOptions _jiraOptions;
-    private readonly ILogger<LearnerController> _logger;
+    readonly MeridianDbContext dbContext;
+    readonly IEnrollmentService enrollmentService;
+    readonly IJiraService jiraService;
+    readonly JiraOptions jiraOptions;
+    readonly ILogger<LearnerController> logger;
 
     public LearnerController(
         MeridianDbContext dbContext,
@@ -25,23 +24,23 @@ public class LearnerController : Controller
         IOptions<JiraOptions> jiraOptions,
         ILogger<LearnerController> logger)
     {
-        _dbContext = dbContext;
-        _enrollmentService = enrollmentService;
-        _jiraService = jiraService;
-        _jiraOptions = jiraOptions.Value;
-        _logger = logger;
+        this.dbContext = dbContext;
+        this.enrollmentService = enrollmentService;
+        this.jiraService = jiraService;
+        this.jiraOptions = jiraOptions.Value;
+        this.logger = logger;
     }
 
     [HttpGet("/learner/{learnerId}/progress")]
     public async Task<IActionResult> Progress(int learnerId)
     {
-        var learner = await _dbContext.Learners.FindAsync(learnerId);
+        var learner = await dbContext.Learners.FindAsync(learnerId);
         if (learner == null)
         {
             return NotFound();
         }
 
-        var enrollments = await _enrollmentService.GetEnrollmentsByLearnerIdAsync(learnerId);
+        var enrollments = await enrollmentService.GetEnrollmentsByLearnerIdAsync(learnerId);
 
         var viewModel = new LearnerProgressViewModel
         {
@@ -61,7 +60,7 @@ public class LearnerController : Controller
 
             try
             {
-                var stories = (await _jiraService.GetStoriesForEpicAsync(enrollment.JiraEpicKey)).ToList();
+                var stories = (await jiraService.GetStoriesForEpicAsync(enrollment.JiraEpicKey)).ToList();
                 courseProgress.Stories = stories;
 
                 if (stories.Any())
@@ -72,27 +71,27 @@ public class LearnerController : Controller
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to fetch Jira stories for Epic {EpicKey}", enrollment.JiraEpicKey);
+                logger.LogError(ex, "Failed to fetch Jira stories for Epic {EpicKey}", enrollment.JiraEpicKey);
                 courseProgress.ErrorMessage = "Could not retrieve progress from Jira.";
             }
 
             viewModel.Courses.Add(courseProgress);
         }
 
-        ViewData["JiraBaseUrl"] = _jiraOptions.BaseUrl;
+        ViewData["JiraBaseUrl"] = jiraOptions.BaseUrl;
         return View(viewModel);
     }
 
     [HttpGet("/learner/{learnerId}/history")]
     public async Task<IActionResult> History(int learnerId)
     {
-        var learner = await _dbContext.Learners.FindAsync(learnerId);
+        var learner = await dbContext.Learners.FindAsync(learnerId);
         if (learner == null)
         {
             return NotFound();
         }
 
-        var enrollments = (await _enrollmentService.GetEnrollmentsByLearnerIdAsync(learnerId))
+        var enrollments = (await enrollmentService.GetEnrollmentsByLearnerIdAsync(learnerId))
             .OrderByDescending(e => e.EnrolledAt)
             .ToList();
 
@@ -115,7 +114,7 @@ public class LearnerController : Controller
 
             try
             {
-                var stories = (await _jiraService.GetStoriesForEpicAsync(enrollment.JiraEpicKey)).ToList();
+                var stories = (await jiraService.GetStoriesForEpicAsync(enrollment.JiraEpicKey)).ToList();
                 if (stories.Any())
                 {
                     var doneCount = stories.Count(s => s.Status.Equals("Done", StringComparison.OrdinalIgnoreCase));
@@ -124,14 +123,14 @@ public class LearnerController : Controller
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to fetch Jira stories for Epic {EpicKey}", enrollment.JiraEpicKey);
+                logger.LogError(ex, "Failed to fetch Jira stories for Epic {EpicKey}", enrollment.JiraEpicKey);
                 historyItem.ErrorMessage = "Could not retrieve progress from Jira.";
             }
 
             viewModel.Enrollments.Add(historyItem);
         }
 
-        ViewData["JiraBaseUrl"] = _jiraOptions.BaseUrl;
+        ViewData["JiraBaseUrl"] = jiraOptions.BaseUrl;
         return View(viewModel);
     }
 }

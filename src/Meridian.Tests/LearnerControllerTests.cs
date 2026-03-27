@@ -1,29 +1,30 @@
+using Meridian.Controllers;
+using Meridian.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
-using Meridian.Controllers;
-using Meridian.Models;
+using System.Text.Json;
 using Uworx.Meridian;
 using Uworx.Meridian.Configuration;
+using Uworx.Meridian.CourseSource;
 using Uworx.Meridian.Entities;
 using Uworx.Meridian.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-using Uworx.Meridian.CourseSource;
+using static Meridian.Tests.NUnitConstants;
 
 namespace Meridian.Tests;
 
-[TestFixture]
-public class LearnerControllerTests
+[TestFixture, Category(TestCatory.Unit)]
+class LearnerControllerTests
 {
-    private MeridianDbContext _dbContext = null!;
-    private Mock<IEnrollmentService> _enrollmentServiceMock = null!;
-    private Mock<IJiraService> _jiraServiceMock = null!;
-    private Mock<IOptions<JiraOptions>> _jiraOptionsMock = null!;
-    private Mock<ILogger<LearnerController>> _loggerMock = null!;
-    private LearnerController _controller = null!;
+    MeridianDbContext dbContext = null!;
+    Mock<IEnrollmentService> enrollmentServiceMock = null!;
+    Mock<IJiraService> jiraServiceMock = null!;
+    Mock<IOptions<JiraOptions>> jiraOptionsMock = null!;
+    Mock<ILogger<LearnerController>> loggerMock = null!;
+    LearnerController controller = null!;
 
     [SetUp]
     public void SetUp()
@@ -31,34 +32,34 @@ public class LearnerControllerTests
         var options = new DbContextOptionsBuilder<MeridianDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
-        _dbContext = new MeridianDbContext(options);
+        dbContext = new MeridianDbContext(options);
 
-        _enrollmentServiceMock = new Mock<IEnrollmentService>();
-        _jiraServiceMock = new Mock<IJiraService>();
-        _jiraOptionsMock = new Mock<IOptions<JiraOptions>>();
-        _loggerMock = new Mock<ILogger<LearnerController>>();
+        enrollmentServiceMock = new Mock<IEnrollmentService>();
+        jiraServiceMock = new Mock<IJiraService>();
+        jiraOptionsMock = new Mock<IOptions<JiraOptions>>();
+        loggerMock = new Mock<ILogger<LearnerController>>();
 
-        _jiraOptionsMock.Setup(o => o.Value).Returns(new JiraOptions { BaseUrl = "https://jira.example.com" });
+        jiraOptionsMock.Setup(o => o.Value).Returns(new JiraOptions { BaseUrl = "https://jira.example.com" });
 
-        _controller = new LearnerController(
-            _dbContext,
-            _enrollmentServiceMock.Object,
-            _jiraServiceMock.Object,
-            _jiraOptionsMock.Object,
-            _loggerMock.Object);
+        controller = new LearnerController(
+            dbContext,
+            enrollmentServiceMock.Object,
+            jiraServiceMock.Object,
+            jiraOptionsMock.Object,
+            loggerMock.Object);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _dbContext.Dispose();
+        dbContext.Dispose();
     }
 
     [Test]
     public async Task History_LearnerNotFound_ReturnsNotFound()
     {
         // Act
-        var result = await _controller.History(999);
+        var result = await controller.History(999);
 
         // Assert
         Assert.That(result, Is.InstanceOf<NotFoundResult>());
@@ -69,9 +70,9 @@ public class LearnerControllerTests
     {
         // Arrange
         var learner = new Learner { Id = 1, Name = "Test Learner", Email = "test@example.com" };
-        _dbContext.Learners.Add(learner);
+        dbContext.Learners.Add(learner);
 
-        var courseConfig = new CourseConfig("C1", "Course 1", "1.0", "Author", "PROJ", "label");
+        var courseConfig = new CourseConfig("C1", "Course 1", "1.0", "Author", "PROJ", "label", null);
         var course = new Course
         {
             Id = 1,
@@ -79,7 +80,7 @@ public class LearnerControllerTests
             SourceLocator = "http://repo",
             CourseYamlSnapshot = JsonSerializer.Serialize(courseConfig)
         };
-        _dbContext.Courses.Add(course);
+        dbContext.Courses.Add(course);
 
         var enrollment1 = new Enrollment
         {
@@ -100,26 +101,26 @@ public class LearnerControllerTests
             Course = course
         };
 
-        _dbContext.Enrollments.AddRange(enrollment1, enrollment2);
-        await _dbContext.SaveChangesAsync();
+        dbContext.Enrollments.AddRange(enrollment1, enrollment2);
+        await dbContext.SaveChangesAsync();
 
-        _enrollmentServiceMock.Setup(s => s.GetEnrollmentsByLearnerIdAsync(1))
+        enrollmentServiceMock.Setup(s => s.GetEnrollmentsByLearnerIdAsync(1))
             .ReturnsAsync(new List<Enrollment> { enrollment1, enrollment2 });
 
-        _jiraServiceMock.Setup(s => s.GetStoriesForEpicAsync("EPIC-1"))
+        jiraServiceMock.Setup(s => s.GetStoriesForEpicAsync("EPIC-1"))
             .ReturnsAsync(new List<JiraStoryStatus>
             {
                 new JiraStoryStatus("STORY-1", "Story 1", "Done", 3)
             });
 
-        _jiraServiceMock.Setup(s => s.GetStoriesForEpicAsync("EPIC-2"))
+        jiraServiceMock.Setup(s => s.GetStoriesForEpicAsync("EPIC-2"))
             .ReturnsAsync(new List<JiraStoryStatus>
             {
                 new JiraStoryStatus("STORY-2", "Story 2", "To Do", 5)
             });
 
         // Act
-        var result = await _controller.History(1);
+        var result = await controller.History(1);
 
         // Assert
         Assert.That(result, Is.InstanceOf<ViewResult>());
@@ -142,15 +143,15 @@ public class LearnerControllerTests
     {
         // Arrange
         var learner = new Learner { Id = 1, Name = "Test Learner", Email = "test@example.com" };
-        _dbContext.Learners.Add(learner);
+        dbContext.Learners.Add(learner);
 
-        var courseConfig = new CourseConfig("C1", "Course 1", "1.0", "Author", "PROJ", "label");
+        var courseConfig = new CourseConfig("C1", "Course 1", "1.0", "Author", "PROJ", "label", null);
         var course = new Course
         {
             Id = 1,
             CourseYamlSnapshot = JsonSerializer.Serialize(courseConfig)
         };
-        _dbContext.Courses.Add(course);
+        dbContext.Courses.Add(course);
 
         var enrollment = new Enrollment
         {
@@ -162,17 +163,17 @@ public class LearnerControllerTests
             Course = course
         };
 
-        _dbContext.Enrollments.Add(enrollment);
-        await _dbContext.SaveChangesAsync();
+        dbContext.Enrollments.Add(enrollment);
+        await dbContext.SaveChangesAsync();
 
-        _enrollmentServiceMock.Setup(s => s.GetEnrollmentsByLearnerIdAsync(1))
+        enrollmentServiceMock.Setup(s => s.GetEnrollmentsByLearnerIdAsync(1))
             .ReturnsAsync(new List<Enrollment> { enrollment });
 
-        _jiraServiceMock.Setup(s => s.GetStoriesForEpicAsync("EPIC-1"))
+        jiraServiceMock.Setup(s => s.GetStoriesForEpicAsync("EPIC-1"))
             .ThrowsAsync(new Exception("Jira is down"));
 
         // Act
-        var result = await _controller.History(1);
+        var result = await controller.History(1);
 
         // Assert
         Assert.That(result, Is.InstanceOf<ViewResult>());
