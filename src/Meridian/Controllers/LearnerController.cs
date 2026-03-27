@@ -82,4 +82,56 @@ public class LearnerController : Controller
         ViewData["JiraBaseUrl"] = _jiraOptions.BaseUrl;
         return View(viewModel);
     }
+
+    [HttpGet("/learner/{learnerId}/history")]
+    public async Task<IActionResult> History(int learnerId)
+    {
+        var learner = await _dbContext.Learners.FindAsync(learnerId);
+        if (learner == null)
+        {
+            return NotFound();
+        }
+
+        var enrollments = (await _enrollmentService.GetEnrollmentsByLearnerIdAsync(learnerId))
+            .OrderByDescending(e => e.EnrolledAt)
+            .ToList();
+
+        var viewModel = new EnrollmentHistoryViewModel
+        {
+            LearnerId = learner.Id,
+            LearnerName = learner.Name,
+            Enrollments = new List<EnrollmentHistoryItemViewModel>()
+        };
+
+        foreach (var enrollment in enrollments)
+        {
+            var courseConfig = JsonSerializer.Deserialize<CourseConfig>(enrollment.Course.CourseYamlSnapshot);
+            var historyItem = new EnrollmentHistoryItemViewModel
+            {
+                CourseTitle = courseConfig?.Title ?? "Unknown Course",
+                EnrolledAt = enrollment.EnrolledAt,
+                JiraEpicKey = enrollment.JiraEpicKey
+            };
+
+            try
+            {
+                var stories = (await _jiraService.GetStoriesForEpicAsync(enrollment.JiraEpicKey)).ToList();
+                if (stories.Any())
+                {
+                    var doneCount = stories.Count(s => s.Status.Equals("Done", StringComparison.OrdinalIgnoreCase));
+                    historyItem.CompletionPct = Math.Round((double)doneCount / stories.Count * 100, 1);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch Jira stories for Epic {EpicKey}", enrollment.JiraEpicKey);
+                historyItem.ErrorMessage = "Could not retrieve progress from Jira.";
+            }
+
+            viewModel.Enrollments.Add(historyItem);
+        }
+
+        ViewData["JiraBaseUrl"] = _jiraOptions.BaseUrl;
+        return View(viewModel);
+    }
 }
