@@ -1,0 +1,68 @@
+@model EnrollmentHistoryViewModel
+@{
+    ViewData["Title"] = "Enrollment History";
+    var jiraBaseUrl = ViewData["JiraBaseUrl"] as string;
+}
+
+<div class="container mt-4">
+    <h2>Enrollment History for @Model.LearnerName</h2>
+    <hr />
+
+    @if (!Model.Enrollments.Any())
+    {
+        <div class="alert alert-info">
+            This learner is not enrolled in any courses yet.
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Course Title</th>
+                            <th>Enrolled On</th>
+                            <th>Jira Epic</th>
+                            <th>Completion Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var enrollment in Model.Enrollments)
+                        {
+                            <tr>
+                                <td><strong>@enrollment.CourseTitle</strong></td>
+                                <td>@enrollment.EnrolledAt.ToString("MMM dd, yyyy")</td>
+                                <td>
+                                    <a href="@(jiraBaseUrl)/browse/@(enrollment.JiraEpicKey)" target="_blank">@enrollment.JiraEpicKey</a>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(enrollment.ErrorMessage))
+                                    {
+                                        <span class="text-warning" title="@enrollment.ErrorMessage">
+                                            <i class="bi bi-exclamation-triangle-fill"></i> Error
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 10px;">
+                                                <div class="progress-bar" role="progressbar" style="width: @(enrollment.CompletionPct)%;"
+                                                     aria-valuenow="@enrollment.CompletionPct" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                            <small>@enrollment.CompletionPct%</small>
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="mt-4">
+        <a href="/learner/@Model.LearnerId/progress" class="btn btn-outline-primary">View Detailed Progress</a>
+    </div>
+</div>
