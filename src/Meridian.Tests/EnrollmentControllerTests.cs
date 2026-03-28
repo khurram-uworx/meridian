@@ -8,7 +8,6 @@ using NUnit.Framework;
 using Uworx.Meridian;
 using Uworx.Meridian.Configuration;
 using Uworx.Meridian.CourseSource;
-using Uworx.Meridian.Entities;
 using static Meridian.Tests.NUnitConstants;
 
 namespace Meridian.Tests;
@@ -16,7 +15,8 @@ namespace Meridian.Tests;
 [TestFixture, Category(TestCatory.Unit)]
 class EnrollmentControllerTests
 {
-    Mock<IEnrollmentService> enrollmentServiceMock = null!;
+    Mock<IEnrollmentOperationService> enrollmentOperationServiceMock = null!;
+    Mock<IEnrollmentQueue> enrollmentQueueMock = null!;
     Mock<IOptions<JiraOptions>> jiraOptionsMock = null!;
     Mock<ILogger<EnrollmentController>> loggerMock = null!;
     EnrollmentController controller = null!;
@@ -24,14 +24,16 @@ class EnrollmentControllerTests
     [SetUp]
     public void SetUp()
     {
-        enrollmentServiceMock = new Mock<IEnrollmentService>();
+        enrollmentOperationServiceMock = new Mock<IEnrollmentOperationService>();
+        enrollmentQueueMock = new Mock<IEnrollmentQueue>();
         jiraOptionsMock = new Mock<IOptions<JiraOptions>>();
         loggerMock = new Mock<ILogger<EnrollmentController>>();
 
         jiraOptionsMock.Setup(o => o.Value).Returns(new JiraOptions { BaseUrl = "https://jira.example.com" });
 
         controller = new EnrollmentController(
-            enrollmentServiceMock.Object,
+            enrollmentOperationServiceMock.Object,
+            enrollmentQueueMock.Object,
             jiraOptionsMock.Object,
             loggerMock.Object);
     }
@@ -47,7 +49,7 @@ class EnrollmentControllerTests
     }
 
     [Test]
-    public async Task Index_Post_ValidModel_RedirectsToConfirm()
+    public async Task Index_Post_ValidModel_QueuesAndRedirectsToProgress()
     {
         // Arrange
         var model = new EnrollmentViewModel
@@ -57,18 +59,41 @@ class EnrollmentControllerTests
             SourceUri = "https://github.com/test/course"
         };
 
-        var enrollment = new Enrollment { JiraEpicKey = "PROJ-1" };
-        enrollmentServiceMock.Setup(s => s.EnrollAsync(model.LearnerEmail, It.IsAny<CourseSourceLocator>()))
-            .ReturnsAsync(enrollment);
+        var operationId = Guid.NewGuid();
+        var operation = new EnrollmentOperationSnapshot(
+            operationId,
+            model.LearnerEmail,
+            model.SourceType.ToString(),
+            model.SourceUri,
+            null,
+            "queued",
+            "queued",
+            "Enrollment request accepted.",
+            false,
+            2,
+            null,
+            null,
+            null,
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            null,
+            Array.Empty<EnrollmentOperationEventSnapshot>());
+
+        enrollmentOperationServiceMock
+            .Setup(s => s.CreateQueuedAsync(model.LearnerEmail, It.IsAny<CourseSourceLocator>()))
+            .ReturnsAsync(operation);
+        enrollmentQueueMock
+            .Setup(q => q.EnqueueAsync(operationId, It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
 
         // Act
-        var result = await controller.Index(model);
+        var result = await controller.Index(model, CancellationToken.None);
 
         // Assert
         Assert.That(result, Is.InstanceOf<RedirectToActionResult>());
         var redirectResult = (RedirectToActionResult)result;
-        Assert.That(redirectResult.ActionName, Is.EqualTo("Confirm"));
-        Assert.That(redirectResult.RouteValues?["epicKey"], Is.EqualTo("PROJ-1"));
+        Assert.That(redirectResult.ActionName, Is.EqualTo("Progress"));
+        Assert.That(redirectResult.RouteValues?["operationId"], Is.EqualTo(operationId));
     }
 
     [Test]
@@ -79,7 +104,7 @@ class EnrollmentControllerTests
         var model = new EnrollmentViewModel();
 
         // Act
-        var result = await controller.Index(model);
+        var result = await controller.Index(model, CancellationToken.None);
 
         // Assert
         Assert.That(result, Is.InstanceOf<ViewResult>());
@@ -88,7 +113,7 @@ class EnrollmentControllerTests
     }
 
     [Test]
-    public async Task Index_Post_ServiceThrows_ReturnsViewWithError()
+    public async Task Index_Post_StartFails_ReturnsViewWithError()
     {
         // Arrange
         var model = new EnrollmentViewModel
@@ -98,11 +123,11 @@ class EnrollmentControllerTests
             SourceUri = "https://github.com/test/course"
         };
 
-        enrollmentServiceMock.Setup(s => s.EnrollAsync(model.LearnerEmail, It.IsAny<CourseSourceLocator>()))
+        enrollmentOperationServiceMock.Setup(s => s.CreateQueuedAsync(model.LearnerEmail, It.IsAny<CourseSourceLocator>()))
             .ThrowsAsync(new Exception("Something went wrong"));
 
         // Act
-        var result = await controller.Index(model);
+        var result = await controller.Index(model, CancellationToken.None);
 
         // Assert
         Assert.That(result, Is.InstanceOf<ViewResult>());
@@ -134,5 +159,76 @@ class EnrollmentControllerTests
         Assert.That(result, Is.InstanceOf<RedirectToActionResult>());
         var redirectResult = (RedirectToActionResult)result;
         Assert.That(redirectResult.ActionName, Is.EqualTo("Index"));
+    }
+
+    [Test]
+    public async Task Progress_UnknownOperation_RedirectsToIndex()
+    {
+        var operationId = Guid.NewGuid();
+        enrollmentOperationServiceMock
+            .Setup(s => s.GetSnapshotAsync(operationId))
+            .ReturnsAsync((EnrollmentOperationSnapshot?)null);
+
+        var result = await controller.Progress(operationId);
+
+        Assert.That(result, Is.InstanceOf<RedirectToActionResult>());
+        var redirect = (RedirectToActionResult)result;
+        Assert.That(redirect.ActionName, Is.EqualTo("Index"));
+    }
+
+    [Test]
+    public async Task Start_ValidModel_ReturnsAcceptedWithOperationId()
+    {
+        var model = new EnrollmentViewModel
+        {
+            LearnerEmail = "test@example.com",
+            SourceType = CourseSourceType.Git,
+            SourceUri = "https://github.com/test/course"
+        };
+
+        var operation = new EnrollmentOperationSnapshot(
+            Guid.NewGuid(),
+            model.LearnerEmail,
+            model.SourceType.ToString(),
+            model.SourceUri,
+            null,
+            "queued",
+            "queued",
+            "Enrollment request accepted.",
+            false,
+            2,
+            null,
+            null,
+            null,
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            null,
+            Array.Empty<EnrollmentOperationEventSnapshot>());
+
+        enrollmentOperationServiceMock
+            .Setup(s => s.CreateQueuedAsync(model.LearnerEmail, It.IsAny<CourseSourceLocator>()))
+            .ReturnsAsync(operation);
+        enrollmentQueueMock
+            .Setup(q => q.EnqueueAsync(operation.Id, It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+
+        var result = await controller.Start(model, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<AcceptedResult>());
+        var accepted = (AcceptedResult)result;
+        Assert.That(accepted.Value, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task Status_UnknownOperation_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        enrollmentOperationServiceMock
+            .Setup(s => s.GetSnapshotAsync(id))
+            .ReturnsAsync((EnrollmentOperationSnapshot?)null);
+
+        var result = await controller.Status(id);
+
+        Assert.That(result, Is.InstanceOf<NotFoundResult>());
     }
 }

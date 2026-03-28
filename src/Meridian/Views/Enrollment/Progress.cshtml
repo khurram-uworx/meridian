@@ -1,0 +1,185 @@
+@{
+    ViewData["Title"] = "Enrollment Progress";
+    var operationId = ViewData["OperationId"]?.ToString();
+}
+
+<h1>Enrollment Progress</h1>
+
+<div class="row">
+    <div class="col-md-8 col-lg-7">
+        <p class="small text-muted mb-3">
+            Your enrollment request has been queued. This page updates automatically.
+        </p>
+
+        <div id="enrollment-progress" class="card mt-2">
+            <div class="card-body">
+                <h5 class="card-title">Enrollment in Progress</h5>
+                <div class="progress mb-3" role="progressbar" aria-label="Enrollment progress" aria-valuemin="0" aria-valuemax="100">
+                    <div id="enrollment-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;">0%</div>
+                </div>
+                <div id="enrollment-current-message" class="fw-semibold mb-2">Starting enrollment...</div>
+                <ul id="enrollment-events" class="list-group list-group-flush small"></ul>
+                <div id="enrollment-error" class="alert alert-danger mt-3 d-none"></div>
+                <div id="enrollment-finished" class="alert alert-success mt-3 d-none">
+                    Enrollment completed. Redirecting to confirmation...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js" asp-append-version="true"></script>
+    <script>
+        (() => {
+            const operationId = "@operationId";
+            if (!operationId || !window.fetch) {
+                return;
+            }
+
+            const progressBar = document.getElementById("enrollment-progress-bar");
+            const currentMessage = document.getElementById("enrollment-current-message");
+            const eventsList = document.getElementById("enrollment-events");
+            const errorBox = document.getElementById("enrollment-error");
+            const finishedBox = document.getElementById("enrollment-finished");
+            let knownEventKeys = new Set();
+            let statusPollTimer = null;
+            let hasCompleted = false;
+            const confirmUrlTemplate = "/enroll/confirm?epicKey=__EPIC_KEY__";
+
+            function stageTitle(stage) {
+                return (stage || "").replaceAll("_", " ");
+            }
+
+            function addEvent(event) {
+                const eventKey = `${event.createdAtUtc}|${event.stage}|${event.message}`;
+                if (knownEventKeys.has(eventKey)) {
+                    return;
+                }
+
+                knownEventKeys.add(eventKey);
+
+                const item = document.createElement("li");
+                item.className = `list-group-item ${event.isWarning ? "text-warning" : ""}`;
+                const time = new Date(event.createdAtUtc).toLocaleTimeString();
+                item.textContent = `${time} - ${stageTitle(event.stage)}: ${event.message}`;
+                eventsList.appendChild(item);
+            }
+
+            function stopPolling() {
+                if (statusPollTimer) {
+                    window.clearInterval(statusPollTimer);
+                    statusPollTimer = null;
+                }
+            }
+
+            function startPolling() {
+                stopPolling();
+                statusPollTimer = window.setInterval(() => {
+                    pollStatus().catch(() => { });
+                }, 4000);
+            }
+
+            function markFailed(message) {
+                progressBar.classList.remove("progress-bar-animated");
+                errorBox.classList.remove("d-none");
+                errorBox.textContent = message || "Enrollment failed. Please retry.";
+                stopPolling();
+            }
+
+            function markCompleted(epicKey) {
+                if (hasCompleted || !epicKey) {
+                    return;
+                }
+
+                hasCompleted = true;
+                progressBar.classList.remove("progress-bar-animated");
+                finishedBox.classList.remove("d-none");
+                stopPolling();
+                window.setTimeout(() => {
+                    window.location.assign(confirmUrlTemplate.replace("__EPIC_KEY__", encodeURIComponent(epicKey)));
+                }, 500);
+            }
+
+            function updateProgress(snapshot) {
+                if (!snapshot) {
+                    return;
+                }
+
+                currentMessage.textContent = snapshot.currentMessage || "Processing enrollment...";
+                const pct = Number.isFinite(snapshot.progressPercent) ? Math.max(0, Math.min(100, snapshot.progressPercent)) : null;
+                if (pct !== null) {
+                    progressBar.style.width = `${pct}%`;
+                    progressBar.textContent = `${pct}%`;
+                    progressBar.setAttribute("aria-valuenow", `${pct}`);
+                }
+
+                (snapshot.events || []).forEach(addEvent);
+
+                if (snapshot.status === "failed") {
+                    markFailed(snapshot.errorMessage);
+                }
+
+                if (snapshot.status === "completed") {
+                    markCompleted(snapshot.jiraEpicKey);
+                }
+            }
+
+            async function pollStatus() {
+                const response = await fetch(`/enroll/status/${operationId}`);
+                if (response.status === 404) {
+                    markFailed("Enrollment operation was not found.");
+                    return;
+                }
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const snapshot = await response.json();
+                updateProgress(snapshot);
+            }
+
+            async function connectSignalR() {
+                if (!window.signalR) {
+                    startPolling();
+                    return;
+                }
+
+                const connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/hubs/enrollment")
+                    .withAutomaticReconnect()
+                    .build();
+
+                connection.on("EnrollmentProgress", (snapshot) => {
+                    if (snapshot.id?.toLowerCase() !== operationId.toLowerCase()) {
+                        return;
+                    }
+
+                    updateProgress(snapshot);
+                });
+
+                connection.onreconnecting(() => {
+                    startPolling();
+                });
+
+                connection.onreconnected(() => {
+                    connection.invoke("Subscribe", operationId).catch(() => { });
+                    stopPolling();
+                });
+
+                try {
+                    await connection.start();
+                    await connection.invoke("Subscribe", operationId);
+                    stopPolling();
+                } catch {
+                    startPolling();
+                }
+            }
+
+            pollStatus()
+                .then(() => connectSignalR())
+                .catch(() => startPolling());
+        })();
+    </script>
+}
