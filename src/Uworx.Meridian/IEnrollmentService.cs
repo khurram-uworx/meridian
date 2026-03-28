@@ -3,9 +3,18 @@ using Uworx.Meridian.Entities;
 
 namespace Uworx.Meridian;
 
+public interface IEnrollmentQueue
+{
+    ValueTask EnqueueAsync(Guid operationId, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<Guid> DequeueAllAsync(CancellationToken cancellationToken);
+}
+
 public interface IEnrollmentService
 {
-    Task<Enrollment> EnrollAsync(string learnerEmail, CourseSourceLocator source);
+    Task<Enrollment> EnrollAsync(
+        string learnerEmail,
+        CourseSourceLocator source,
+        Func<EnrollmentProgressUpdate, Task>? onProgress = null);
 
     /// <summary>
     /// Gets all enrollments for a specific learner.

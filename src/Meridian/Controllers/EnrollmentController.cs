@@ -9,16 +9,19 @@ namespace Meridian.Controllers;
 
 public class EnrollmentController : Controller
 {
-    readonly IEnrollmentService enrollmentService;
+    readonly IEnrollmentOperationService enrollmentOperationService;
+    readonly IEnrollmentQueue enrollmentQueue;
     readonly JiraOptions jiraOptions;
     readonly ILogger<EnrollmentController> logger;
 
     public EnrollmentController(
-        IEnrollmentService enrollmentService,
+        IEnrollmentOperationService enrollmentOperationService,
+        IEnrollmentQueue enrollmentQueue,
         IOptions<JiraOptions> jiraOptions,
         ILogger<EnrollmentController> logger)
     {
-        this.enrollmentService = enrollmentService;
+        this.enrollmentOperationService = enrollmentOperationService;
+        this.enrollmentQueue = enrollmentQueue;
         this.jiraOptions = jiraOptions.Value;
         this.logger = logger;
     }
@@ -27,7 +30,7 @@ public class EnrollmentController : Controller
     public IActionResult Index() => View();
 
     [HttpPost("/enroll")]
-    public async Task<IActionResult> Index(EnrollmentViewModel model)
+    public async Task<IActionResult> Index(EnrollmentViewModel model, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
             return View(model);
@@ -35,16 +38,63 @@ public class EnrollmentController : Controller
         try
         {
             var source = new CourseSourceLocator(model.SourceType, model.SourceUri, model.SubPath);
-            var enrollment = await enrollmentService.EnrollAsync(model.LearnerEmail, source);
-
-            return RedirectToAction(nameof(Confirm), new { epicKey = enrollment.JiraEpicKey });
+            var operation = await enrollmentOperationService.CreateQueuedAsync(model.LearnerEmail, source);
+            await enrollmentQueue.EnqueueAsync(operation.Id, cancellationToken);
+            return RedirectToAction(nameof(Progress), new { operationId = operation.Id });
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during enrollment for {Email}", model.LearnerEmail);
-            ModelState.AddModelError(string.Empty, $"An error occurred during enrollment: {ex.Message}");
+            logger.LogError(ex, "Error scheduling enrollment for {Email}", model.LearnerEmail);
+            ModelState.AddModelError(string.Empty, $"Failed to start enrollment: {ex.Message}");
             return View(model);
         }
+    }
+
+    [HttpGet("/enroll/progress/{operationId:guid}")]
+    public async Task<IActionResult> Progress(Guid operationId)
+    {
+        var snapshot = await enrollmentOperationService.GetSnapshotAsync(operationId);
+        if (snapshot == null)
+            return RedirectToAction(nameof(Index));
+
+        ViewData["OperationId"] = operationId;
+        return View();
+    }
+
+    [HttpPost("/enroll/start")]
+    public async Task<IActionResult> Start(EnrollmentViewModel model, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        try
+        {
+            var source = new CourseSourceLocator(model.SourceType, model.SourceUri, model.SubPath);
+            var operation = await enrollmentOperationService.CreateQueuedAsync(model.LearnerEmail, source);
+            await enrollmentQueue.EnqueueAsync(operation.Id, cancellationToken);
+
+            return Accepted(new
+            {
+                operationId = operation.Id,
+                statusUrl = $"/enroll/status/{operation.Id}",
+                confirmUrlTemplate = "/enroll/confirm?epicKey=__EPIC_KEY__"
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error scheduling enrollment for {Email}", model.LearnerEmail);
+            return Problem($"Failed to start enrollment: {ex.Message}");
+        }
+    }
+
+    [HttpGet("/enroll/status/{operationId:guid}")]
+    public async Task<IActionResult> Status(Guid operationId)
+    {
+        var snapshot = await enrollmentOperationService.GetSnapshotAsync(operationId);
+        if (snapshot == null)
+            return NotFound();
+
+        return Ok(snapshot);
     }
 
     [HttpGet("/enroll/confirm")]

@@ -19,6 +19,7 @@ html {
 
 body {
   margin-bottom: 60px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 45%);
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
@@ -28,4 +29,18 @@ body {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
+}
+
+#enrollment-progress {
+  border: 1px solid #d8e7f7;
+  background: linear-gradient(140deg, #ffffff 0%, #eef6ff 100%);
+}
+
+#enrollment-progress .card-title {
+  color: #114c8d;
+}
+
+#enrollment-events .list-group-item {
+  background: transparent;
+  border-color: #dbe8f6;
 }

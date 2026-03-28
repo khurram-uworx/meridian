@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Meridian.Hubs;
+using Meridian.Services;
 using Uworx.Meridian;
 using Uworx.Meridian.Configuration;
 using Uworx.Meridian.CourseSource;
@@ -12,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<JiraOptions>(builder.Configuration.GetSection(JiraOptions.Jira));
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddSignalR();
 
 builder.Services.AddDbContext<MeridianDbContext>(options =>
     options.UseInMemoryDatabase("MeridianDb"));
@@ -22,6 +25,9 @@ builder.Services.AddScoped<ISectionParser, SectionParser>();
 builder.Services.AddScoped<ICourseParser, CourseParser>();
 builder.Services.AddScoped<IJiraService, JiraService>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+builder.Services.AddScoped<IEnrollmentOperationService, EnrollmentOperationService>();
+builder.Services.AddSingleton<IEnrollmentQueue, EnrollmentQueue>();
+builder.Services.AddHostedService<EnrollmentProcessingService>();
 
 var app = builder.Build();
 
@@ -57,6 +63,8 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+app.MapHub<EnrollmentHub>("/hubs/enrollment");
 
 
 app.Run();

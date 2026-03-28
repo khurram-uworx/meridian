@@ -42,3 +42,38 @@ public class QuizAttempt
 
     public Enrollment Enrollment { get; set; } = null!;
 }
+
+public class EnrollmentOperation
+{
+    public Guid Id { get; set; }
+    public string LearnerEmail { get; set; } = string.Empty;
+    public string SourceType { get; set; } = string.Empty;
+    public string SourceUri { get; set; } = string.Empty;
+    public string? SubPath { get; set; }
+    public string Status { get; set; } = "queued";
+    public string CurrentStage { get; set; } = "queued";
+    public string CurrentMessage { get; set; } = string.Empty;
+    public bool IsWarning { get; set; }
+    public int? ProgressPercent { get; set; }
+    public int? EnrollmentId { get; set; }
+    public string? JiraEpicKey { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime StartedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+    public DateTime? CompletedAtUtc { get; set; }
+
+    public ICollection<EnrollmentOperationEvent> Events { get; set; } = new List<EnrollmentOperationEvent>();
+}
+
+public class EnrollmentOperationEvent
+{
+    public int Id { get; set; }
+    public Guid EnrollmentOperationId { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public string Stage { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public bool IsWarning { get; set; }
+    public int? ProgressPercent { get; set; }
+
+    public EnrollmentOperation EnrollmentOperation { get; set; } = null!;
+}
